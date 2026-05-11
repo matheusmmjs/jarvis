@@ -41,6 +41,13 @@
   reconcile. Closes #279.
 
 ### Fixed (CLI)
+- **OpenCode MCP usage is now counted.** OpenCode records MCP tool calls as
+  `<server>_<tool>` part names such as `clickup_clickup_get_task`, while the
+  shared CodeBurn MCP reporting pipeline expects `mcp__<server>__<tool>`.
+  The OpenCode provider now normalizes external tool calls into that canonical
+  shape before aggregation, so dashboard/JSON MCP breakdowns show servers like
+  ClickUp and Figma as used and `optimize` no longer recommends removing
+  configured servers that were invoked from OpenCode. Closes #308.
 - **Cursor sessions break down by project, not one row called "cursor".**
   Cursor's chat history sat under a single dashboard row labeled `cursor`
   because the provider had no way to attribute bubbles to a workspace.
