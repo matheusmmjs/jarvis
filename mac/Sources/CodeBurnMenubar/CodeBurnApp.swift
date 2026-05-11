@@ -95,6 +95,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
                 self?.forceRefreshTask = nil
                 self?.forceRefreshStartedAt = nil
                 self?.forceRefreshGeneration &+= 1
+                self?.store.resetLoadingState()
                 self?.refreshLoopTask?.cancel()
                 self?.refreshLoopTask = nil
             }
@@ -110,9 +111,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             queue: .main
         ) { [weak self] _ in
             Task { @MainActor in
-                self?.store.resetLoadingState()
-                self?.forceRefresh()
-                if self?.refreshLoopTask == nil { self?.startRefreshLoop() }
+                self?.recoverRefreshPipelineAfterInterruption(resetLoading: true)
             }
         }
 
@@ -121,7 +120,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            Task { @MainActor in self?.forceRefresh() }
+            Task { @MainActor in
+                self?.recoverRefreshPipelineAfterInterruption(resetLoading: true)
+            }
         }
     }
 
@@ -131,8 +132,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            Task { @MainActor in self?.forceRefresh() }
+            Task { @MainActor in
+                self?.recoverRefreshPipelineAfterInterruption(resetLoading: false)
+            }
         }
+    }
+
+    private func recoverRefreshPipelineAfterInterruption(resetLoading: Bool) {
+        if resetLoading {
+            store.resetLoadingState()
+        } else {
+            _ = store.clearStaleLoadingIfNeeded()
+        }
+        if refreshLoopTask == nil {
+            startRefreshLoop()
+        }
+        forceRefresh()
     }
 
     private func installLaunchAgentIfNeeded() {
@@ -232,6 +247,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     private func forceRefresh() {
         let now = Date()
         _ = clearStaleForceRefreshIfNeeded(now: now)
+        guard forceRefreshTask == nil else { return }
         guard now.timeIntervalSince(lastRefreshTime) > 5 else { return }
         lastRefreshTime = now
         forceRefreshStartedAt = now

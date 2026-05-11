@@ -11,17 +11,28 @@ import { Readable } from 'node:stream'
 /// newest tagged release; we filter its assets list for our zipped .app bundle.
 const RELEASE_API = 'https://api.github.com/repos/getagentseal/codeburn/releases/latest'
 const APP_BUNDLE_NAME = 'CodeBurnMenubar.app'
-const ASSET_PATTERN = /^CodeBurnMenubar-.*\.zip$/
-const CHECKSUM_PATTERN = /^CodeBurnMenubar-.*\.zip\.sha256$/
+const VERSIONED_ASSET_PATTERN = /^CodeBurnMenubar-v.+\.zip$/
 const APP_PROCESS_NAME = 'CodeBurnMenubar'
 const SUPPORTED_OS = 'darwin'
 const MIN_MACOS_MAJOR = 14
 
 export type InstallResult = { installedPath: string; launched: boolean }
 
-type ReleaseAsset = { name: string; browser_download_url: string }
-type ReleaseResponse = { tag_name: string; assets: ReleaseAsset[] }
-type ResolvedAssets = { zip: ReleaseAsset; checksum: ReleaseAsset | null }
+export type ReleaseAsset = { name: string; browser_download_url: string }
+export type ReleaseResponse = { tag_name: string; assets: ReleaseAsset[] }
+export type ResolvedAssets = { zip: ReleaseAsset; checksum: ReleaseAsset | null }
+
+export function resolveMenubarReleaseAssets(release: ReleaseResponse): ResolvedAssets {
+  const zip = release.assets.find(a => VERSIONED_ASSET_PATTERN.test(a.name))
+  if (!zip) {
+    throw new Error(
+      `No ${APP_BUNDLE_NAME} versioned zip found in release ${release.tag_name}. ` +
+      `Check https://github.com/getagentseal/codeburn/releases.`
+    )
+  }
+  const checksum = release.assets.find(a => a.name === `${zip.name}.sha256`) ?? null
+  return { zip, checksum }
+}
 
 function userApplicationsDir(): string {
   return join(homedir(), 'Applications')
@@ -71,15 +82,7 @@ async function fetchLatestReleaseAssets(): Promise<ResolvedAssets> {
     throw new Error(`GitHub release lookup failed: HTTP ${response.status}`)
   }
   const body = await response.json() as ReleaseResponse
-  const zip = body.assets.find(a => ASSET_PATTERN.test(a.name))
-  if (!zip) {
-    throw new Error(
-      `No ${APP_BUNDLE_NAME} zip found in release ${body.tag_name}. ` +
-      `Check https://github.com/getagentseal/codeburn/releases.`
-    )
-  }
-  const checksum = body.assets.find(a => CHECKSUM_PATTERN.test(a.name)) ?? null
-  return { zip, checksum }
+  return resolveMenubarReleaseAssets(body)
 }
 
 async function verifyChecksum(archivePath: string, checksumUrl: string): Promise<void> {

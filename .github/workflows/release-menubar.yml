@@ -45,7 +45,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: CodeBurnMenubar-${{ steps.version.outputs.value }}
-          path: mac/.build/dist/CodeBurnMenubar-*.zip
+          path: |
+            mac/.build/dist/CodeBurnMenubar-${{ steps.version.outputs.value }}.zip
+            mac/.build/dist/CodeBurnMenubar-${{ steps.version.outputs.value }}.zip.sha256
           if-no-files-found: error
 
       - name: Create / update GitHub Release
@@ -66,6 +68,6 @@ jobs:
             and macOS shows "cannot verify developer", right-click the app in Finder and
             pick Open to whitelist it once.
           files: |
-            mac/.build/dist/CodeBurnMenubar-*.zip
-            mac/.build/dist/CodeBurnMenubar-*.zip.sha256
+            mac/.build/dist/CodeBurnMenubar-${{ steps.version.outputs.value }}.zip
+            mac/.build/dist/CodeBurnMenubar-${{ steps.version.outputs.value }}.zip.sha256
           fail_on_unmatched_files: true

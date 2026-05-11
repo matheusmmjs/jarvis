@@ -46,7 +46,7 @@ final class UpdateChecker {
             let (data, _) = try await URLSession.shared.data(for: request)
             let release = try JSONDecoder().decode(GitHubRelease.self, from: data)
             guard let asset = release.assets.first(where: {
-                $0.name.hasPrefix("CodeBurnMenubar-") && $0.name.hasSuffix(".zip")
+                $0.name.hasPrefix("CodeBurnMenubar-v") && $0.name.hasSuffix(".zip")
             }) else { return }
 
             let version = asset.name
