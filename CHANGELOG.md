@@ -2,12 +2,29 @@
 
 ## Unreleased
 
+## 0.9.9 - 2026-05-15
+
 ### Added (CLI)
 - **IBM Bob provider.** Discovers IBM Bob IDE task history, reuses the
   Cline-family parser for token/cost records, extracts model tags and
   workspace-based project names from session data. Closes #248.
 
 ### Fixed (CLI)
+- **Reduced Claude parser OOM risk.** Large Claude JSONL sessions retained
+  full entry objects (text, thinking blocks, tool results) in memory during
+  parsing, causing V8 heap exhaustion on heavy usage months. Entries are now
+  compacted immediately after JSON.parse, keeping only the fields needed for
+  cost/token aggregation. This is a mitigation - very heavy users may still
+  need the streaming parser refactor planned next.
+- **Eager daily-cache hydration caused OOM on most CLI commands.** Nine
+  commands (report, today, month, export, optimize, compare, models, yield)
+  called `hydrateCache()` which parses a 365-day backfill, even though only
+  `status --format menubar-json` consumes the daily cache. Removed from all
+  paths that parse their own date ranges via `parseAllSessions`.
+- **Session cache retained between status parses.** The `status --format json`
+  path parsed today and month ranges without clearing the in-process session
+  cache between them, keeping both result sets pinned. Cache is now cleared
+  after each period is consumed.
 - **Claude 1-hour cache write pricing.** 1-hour cache writes are now priced
   at 2x base input (previously used the 5-minute 1.25x rate for all writes).
   Daily cache bumped to v6 so stale totals are recomputed. Closes #276.
@@ -22,24 +39,6 @@
 - **Cursor undated bubble rows misattributed to Today.** Bubble rows without
   a `createdAt` timestamp were defaulting to the current date, inflating
   Today's spend. Now skipped at both the SQL and application level.
-
-## 0.9.9 - 2026-05-15
-
-### Fixed (CLI)
-- **Reduced Claude parser OOM risk.** Large Claude JSONL sessions retained
-  full entry objects (text, thinking blocks, tool results) in memory during
-  parsing, causing V8 heap exhaustion on heavy usage months. Entries are now
-  compacted immediately after JSON.parse, keeping only the fields needed for
-  cost/token aggregation. This is a mitigation - very heavy users may still
-  need the streaming parser refactor planned next.
-- **Redundant `hydrateCache()` in status commands.** The `status --format json`
-  and terminal `status` paths hydrated the daily cache before calling
-  `parseAllSessions` directly, doubling memory pressure for no benefit.
-  Removed. The menubar-json path still hydrates as needed.
-- **Session cache retained between status parses.** The `status --format json`
-  path parsed today and month ranges without clearing the in-process session
-  cache between them, keeping both result sets pinned. Cache is now cleared
-  after each period is consumed.
 
 ## 0.9.8 - 2026-05-10
 
