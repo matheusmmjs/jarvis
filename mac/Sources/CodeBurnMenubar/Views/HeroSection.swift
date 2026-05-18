@@ -55,7 +55,8 @@ struct HeroSection: View {
 
             if store.selectedPeriod == .today,
                store.dailyBudget > 0,
-               store.payload.current.cost >= store.dailyBudget {
+               let todayCost = store.todayPayload?.current.cost,
+               todayCost >= store.dailyBudget {
                 HStack(spacing: 4) {
                     Image(systemName: "exclamationmark.triangle.fill")
                         .font(.system(size: 10))

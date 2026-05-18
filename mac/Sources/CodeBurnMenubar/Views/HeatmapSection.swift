@@ -1086,7 +1086,7 @@ private struct SessionDetailsList: View {
                         .padding(.leading, 4)
                     }
                     HStack(spacing: 4) {
-                        ForEach(sess.models.prefix(3), id: \.name) { model in
+                        ForEach(Array(sess.models.prefix(3).enumerated()), id: \.offset) { _, model in
                             Text(model.name)
                                 .font(.system(size: 8.5, weight: .medium))
                                 .foregroundStyle(.secondary)
