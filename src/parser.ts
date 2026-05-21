@@ -1531,7 +1531,7 @@ function providerCallToCachedCall(call: ParsedProviderCall): CachedCall {
       webSearchRequests: call.webSearchRequests,
       cacheCreationOneHourTokens: 0,
     },
-    costUSD: call.provider === 'mistral-vibe' ? call.costUSD : undefined,
+    costUSD: (call.provider === 'mistral-vibe' || call.provider === 'antigravity') ? call.costUSD : undefined,
     speed: call.speed,
     timestamp: call.timestamp,
     tools: call.tools,
@@ -1681,6 +1681,10 @@ function getOrCreateProviderSection(cache: SessionCache, provider: string): Prov
 }
 
 function cachedFileNeedsProviderReparse(providerName: string, cached: CachedFile): boolean {
+  // Antigravity data comes from the live server, not from the .pb file.
+  // A 0-turn cache entry may just mean the server was unavailable last run.
+  if (providerName === 'antigravity' && cached.turns.length === 0) return true
+
   if (providerName !== 'gemini') return false
 
   return cached.turns.some(turn =>

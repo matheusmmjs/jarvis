@@ -44,6 +44,7 @@ type CodexEntry = {
     model_provider?: string
     originator?: string
     session_id?: string
+    forked_from_id?: string
     model?: string
     name?: string
     content?: Array<{ type?: string; text?: string }>
@@ -224,6 +225,7 @@ function parseCodexLine(line: string | Buffer): CodexEntry | null {
       model_provider: getRawJsonStringField(pHead, 'model_provider'),
       originator: getRawJsonStringField(pHead, 'originator'),
       session_id: getRawJsonStringField(pHead, 'session_id'),
+      forked_from_id: getRawJsonStringField(pHead, 'forked_from_id'),
       model: getRawJsonStringField(pHead, 'model'),
       name: getRawJsonStringField(pHead, 'name'),
     },
@@ -315,6 +317,8 @@ function createParser(source: SessionSource, seenKeys: Set<string>): SessionPars
 
       let sessionModel: string | undefined
       let sessionId = ''
+      let forkedFromId = ''
+      let forkCutoff = ''
       // Null sentinel rather than `0` so the FIRST event is never confused
       // with a duplicate. A session that only emits last_token_usage (no
       // total_token_usage) reports cumulativeTotal=0 on every event; with a
@@ -345,6 +349,10 @@ function createParser(source: SessionSource, seenKeys: Set<string>): SessionPars
 
         if (entry.type === 'session_meta') {
           sessionId = entry.payload?.session_id ?? basename(source.path, '.jsonl')
+          forkedFromId = entry.payload?.forked_from_id ?? ''
+          if (forkedFromId && entry.timestamp) {
+            forkCutoff = new Date(new Date(entry.timestamp).getTime() + 5000).toISOString()
+          }
           sessionModel = entry.payload?.model ?? sessionModel
           continue
         }
@@ -383,6 +391,10 @@ function createParser(source: SessionSource, seenKeys: Set<string>): SessionPars
         }
 
         if (entry.type === 'event_msg' && entry.payload?.type === 'token_count') {
+          // Forked sessions replay the parent's entire event history with
+          // timestamps clustered at the fork creation time. Skip replayed
+          // events (within 5s of fork) to avoid double-counting.
+          if (forkCutoff && entry.timestamp && entry.timestamp < forkCutoff) continue
           const info = entry.payload.info
           if (!info) {
             if (pendingOutputChars === 0 && pendingUserMessage.length === 0) continue
@@ -479,7 +491,7 @@ function createParser(source: SessionSource, seenKeys: Set<string>): SessionPars
 
           const model = resolveModel(entry.payload, sessionModel)
           const timestamp = entry.timestamp ?? ''
-          const dedupKey = `codex:${sessionId}:${timestamp}:${cumulativeTotal}`
+          const dedupKey = `codex:${forkedFromId || sessionId}:${cumulativeTotal}`
 
           if (seenKeys.has(dedupKey)) continue
           seenKeys.add(dedupKey)

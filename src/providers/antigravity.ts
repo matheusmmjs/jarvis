@@ -111,7 +111,7 @@ function isLikelyCsrfToken(value: string): boolean {
   return value.length >= 16 && /^[A-Za-z0-9._~:/+=-]+$/.test(value)
 }
 
-export function parseAntigravityServerInfoFromLine(line: string): ServerInfo | null {
+export function parseAntigravityServerInfoFromLine(line: string): ServerInfo | { port: 0; csrfToken: string } | null {
   const lower = line.toLowerCase()
   if (!lower.includes('language_server') || !lower.includes('antigravity')) return null
 
@@ -121,7 +121,7 @@ export function parseAntigravityServerInfoFromLine(line: string): ServerInfo | n
   if (!isLikelyCsrfToken(csrfToken)) return null
 
   const port = Number(rawPort)
-  if (!Number.isInteger(port) || port <= 0 || port > 65535) return null
+  if (!Number.isInteger(port) || port < 0 || port > 65535) return null
 
   return { port, csrfToken }
 }
@@ -222,10 +222,36 @@ async function readProcessCommandLines(): Promise<string[]> {
   return output.split('\n')
 }
 
+async function resolveEphemeralPort(csrfToken: string): Promise<ServerInfo | null> {
+  if (process.platform === 'win32') return null
+  try {
+    const pidOutput = await execFileText('pgrep', ['-f', 'language_server.*antigravity'])
+    const pid = pidOutput.trim().split('\n')[0]
+    if (!pid) return null
+    const lsofOutput = await execFileText('lsof', ['-a', '-i', '-P', '-n', '-p', pid])
+    for (const line of lsofOutput.split('\n')) {
+      if (!line.includes('LISTEN')) continue
+      const match = line.match(/:(\d+)\s+\(LISTEN\)/)
+      if (match) {
+        const port = Number(match[1])
+        if (port > 0) return { port, csrfToken }
+      }
+    }
+  } catch { /* best-effort */ }
+  return null
+}
+
 async function detectServer(): Promise<ServerInfo | null> {
   if (cachedServer !== undefined) return cachedServer
   try {
-    cachedServer = parseAntigravityServerInfo(await readProcessCommandLines())
+    const info = parseAntigravityServerInfo(await readProcessCommandLines())
+    if (info && info.port > 0) {
+      cachedServer = info as ServerInfo
+    } else if (info && info.port === 0) {
+      cachedServer = await resolveEphemeralPort(info.csrfToken)
+    } else {
+      cachedServer = null
+    }
     return cachedServer
   } catch { /* process discovery failed or timed out */ }
   cachedServer = null
@@ -291,8 +317,13 @@ async function getModelMap(server: ServerInfo): Promise<ModelMap> {
 }
 
 // Strip Antigravity-specific suffixes so the pricing DB can match
+const PRICING_ALIASES: Record<string, string> = {
+  'gemini-pro': 'gemini-3.1-pro',
+}
+
 function normalizePricingModel(model: string): string {
-  return model.replace(/-(high|low|agent)$/, '')
+  const stripped = model.replace(/-(high|low|agent)$/, '')
+  return PRICING_ALIASES[stripped] ?? stripped
 }
 
 async function discoverSessions(): Promise<SessionSource[]> {
@@ -424,11 +455,13 @@ function createParser(source: SessionSource, seenKeys: Set<string>): SessionPars
 }
 
 const modelDisplayNames: Record<string, string> = {
+  'gemini-pro-agent': 'Gemini Pro',
   'gemini-3-pro': 'Gemini 3 Pro',
   'gemini-3.1-pro-high': 'Gemini 3.1 Pro',
   'gemini-3.1-pro-low': 'Gemini 3.1 Pro (Low)',
   'gemini-3-flash': 'Gemini 3 Flash',
   'gemini-3-flash-agent': 'Gemini 3 Flash',
+  'gemini-3.5-flash-low': 'Gemini 3.5 Flash',
   'gemini-3.1-flash-image': 'Gemini 3.1 Flash',
   'gemini-3.1-flash-lite': 'Gemini 3.1 Flash Lite',
   'claude-opus-4-6-thinking': 'Opus 4.6',

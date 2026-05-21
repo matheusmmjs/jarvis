@@ -120,9 +120,18 @@ struct AgentTabStrip: View {
         let detectedKeys = Set(
             todayAll.current.providers.keys.map { $0.lowercased() }
         )
-        return ProviderFilter.allCases.filter { filter in
+        let detected = ProviderFilter.allCases.filter { filter in
             if filter == .all { return true }
             return filter.providerKeys.contains(where: detectedKeys.contains)
+        }
+        let costs = Dictionary(uniqueKeysWithValues: detected.map { ($0, cost(for: $0) ?? 0) })
+        return detected.sorted { a, b in
+            if a == .all { return true }
+            if b == .all { return false }
+            let ca = costs[a, default: 0]
+            let cb = costs[b, default: 0]
+            if ca != cb { return ca > cb }
+            return a.rawValue < b.rawValue
         }
     }
 
