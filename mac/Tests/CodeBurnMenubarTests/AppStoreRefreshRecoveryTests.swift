@@ -91,4 +91,32 @@ struct AppStoreRefreshRecoveryTests {
         #expect(store.shouldResetInteractiveRefreshPipeline)
     }
 
+    @Test("orphaned stale in-flight entry does not block stuck-loading recovery")
+    func staleInFlightDoesNotBlockRecovery() {
+        let store = AppStore()
+        // A quiet refresh torn down across sleep/wake can leave an in-flight
+        // entry behind for the current key with no cache and no active loading
+        // counter, far older than the watchdog window. Recovery must clear it
+        // and proceed instead of bailing on the in-flight guard forever.
+        store.seedInFlightForTesting(period: .today, provider: .all, insertedAt: Date().addingTimeInterval(-3600))
+
+        #expect(store.isInFlightForTesting(period: .today, provider: .all))
+
+        let canRecover = store.prepareStuckLoadingRecovery()
+
+        #expect(canRecover)
+        #expect(!store.isInFlightForTesting(period: .today, provider: .all))
+    }
+
+    @Test("healthy in-flight fetch is not killed by recovery")
+    func healthyInFlightFetchSurvivesRecovery() {
+        let store = AppStore()
+        store.seedInFlightForTesting(period: .today, provider: .all, insertedAt: Date())
+
+        let canRecover = store.prepareStuckLoadingRecovery()
+
+        #expect(!canRecover)
+        #expect(store.isInFlightForTesting(period: .today, provider: .all))
+    }
+
 }
