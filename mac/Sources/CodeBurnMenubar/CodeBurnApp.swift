@@ -161,6 +161,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     }
 
     private func prepareRefreshPipelineForSleep() {
+        // Cancel only in-flight work so a fetch started before sleep cannot
+        // apply a stale result after wake. The DispatchSource timer is paused
+        // by the kernel during sleep and fires normally on wake, so we leave
+        // it running — tearing it down here was the stranding bug: a missed
+        // wake notification left refreshTimer nil forever. The 5s rate limiter
+        // and single-flight forceRefreshTask guard absorb the wake burst.
         forceRefreshTask?.cancel()
         forceRefreshTask = nil
         forceRefreshStartedAt = nil
@@ -173,8 +179,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         statusPayloadRefreshStartedAt = nil
         statusPayloadRefreshGeneration &+= 1
         store.resetLoadingState()
-        stopRefreshTimer()
-        refreshLoopHeartbeatAt = .distantPast
         lastRefreshTime = .distantPast
     }
 
