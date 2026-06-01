@@ -126,6 +126,20 @@ describe('Antigravity CLI statusLine hook installer', () => {
     })
   })
 
+  it('treats a custom statusLine that only mentions the hook token as custom, not CodeBurn-owned', async () => {
+    await withTempSettings(async (_dir, settingsPath) => {
+      const custom = 'mybar --note "runs agy-statusline-hook nightly"'
+      await writeFile(settingsPath, JSON.stringify({
+        statusLine: { type: 'command', command: custom, padding: 0 },
+      }))
+
+      await expect(installAntigravityStatusLineHook(false)).rejects.toThrow(/custom statusLine/)
+
+      const settings = JSON.parse(await readFile(settingsPath, 'utf-8'))
+      expect(settings.statusLine.command).toBe(custom)
+    })
+  })
+
   it('removes CodeBurn statusLine when there is no previous hook backup', async () => {
     await withTempSettings(async (_dir, settingsPath) => {
       await writeFile(settingsPath, JSON.stringify({
