@@ -1,6 +1,6 @@
 import { existsSync } from 'fs'
 import { readdir, readFile, stat } from 'fs/promises'
-import { basename, dirname, join, posix, sep, win32 } from 'path'
+import { basename, dirname, join, posix, win32 } from 'path'
 import { homedir } from 'os'
 
 import { readSessionFile } from '../fs-utils.js'
@@ -617,7 +617,12 @@ async function discoverJetBrainsSessions(jbDir: string): Promise<SessionSource[]
 
 /** Infer a project name from tool execution paths in already-loaded content. */
 function inferJBProjectFromContent(content: string): string | null {
-  const homeParts = homedir().split(sep)
+  // Split on either separator so the home-depth math lines up with the recorded
+  // tool path on every platform (JetBrains records Windows paths with
+  // backslashes, and homedir() also uses backslashes there). Using a fixed '/'
+  // for the path while splitting home on the platform sep mismatched on Windows
+  // and made inference always fall back to the raw session id there.
+  const homeParts = homedir().split(/[/\\]/)
   const homeDepth = homeParts.length
   const lines = content.split('\n')
   const limit = Math.min(lines.length, 200)
@@ -631,7 +636,7 @@ function inferJBProjectFromContent(content: string): string | null {
         const args = e.data?.arguments
         if (typeof args === 'object' && args !== null && typeof args.path === 'string') {
           const pathVal: string = args.path
-          const parts = pathVal.split('/')
+          const parts = pathVal.split(/[/\\]/)
           if (parts.length > homeDepth + 1) {
             const afterHome = parts.slice(homeDepth)
             if (afterHome.length >= 2) {
