@@ -89,7 +89,11 @@ export async function aggregateModels(projects: ProjectSummary[], opts: Aggregat
           bucket.inputTokens += call.usage.inputTokens
           bucket.outputTokens += call.usage.outputTokens + call.usage.reasoningTokens
           bucket.cacheWriteTokens += call.usage.cacheCreationInputTokens
-          bucket.cacheReadTokens += call.usage.cacheReadInputTokens + call.usage.cachedInputTokens
+          // cacheReadInputTokens (Anthropic vocab) and cachedInputTokens (OpenAI vocab)
+          // are two names for the same thing. Providers populate one or set both to the
+          // same value, so take the max — summing double-counts cache reads for every
+          // provider that fills both fields.
+          bucket.cacheReadTokens += Math.max(call.usage.cacheReadInputTokens, call.usage.cachedInputTokens)
           bucket.costUSD += call.costUSD
           bucket.calls += 1
 

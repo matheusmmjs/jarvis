@@ -125,6 +125,17 @@ describe('aggregateModels', () => {
     expect(claudeRow.totalTokens).toBe(1800 + 300 + 800 + 13000)
   })
 
+  it('does not double-count cache reads when a provider sets both cache fields', async () => {
+    // Providers like codex/mux/codebuff populate cacheReadInputTokens AND
+    // cachedInputTokens with the same value (Anthropic vs OpenAI vocabulary for
+    // the same tokens). The report must count them once, not sum them.
+    const call = makeCall({ provider: 'mux', model: 'claude-opus-4-8', input: 100, output: 50, cacheRead: 4000, costUSD: 2.0 })
+    call.usage.cachedInputTokens = 4000 // mirrors cacheReadInputTokens, as those providers do
+
+    const rows = await aggregateModels([makeProject([makeTurn('feature', [call])])])
+    expect(rows[0]!.cacheReadTokens).toBe(4000) // not 8000
+  })
+
   it('reports the dominant task type with its cost share in default mode', async () => {
     const project = makeProject([
       makeTurn('feature', [makeCall({ provider: 'claude', model: 'claude-sonnet-4-6', costUSD: 6.0, input: 100, output: 20 })]),
