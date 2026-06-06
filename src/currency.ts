@@ -3,6 +3,7 @@ import { join } from 'path'
 import { homedir } from 'os'
 
 import { readConfig } from './config.js'
+import { fetchWithTimeout } from './fetch-utils.js'
 
 type CurrencyState = {
   code: string
@@ -79,7 +80,9 @@ function getRateCachePath(): string {
 }
 
 async function fetchRate(code: string): Promise<number> {
-  const response = await fetch(`${FRANKFURTER_URL}${code}`)
+  // Bounded so a stalled network can't hang the daily refresh for non-USD users
+  // (same wedge as the pricing fetch); callers fall back to USD / cached rate.
+  const response = await fetchWithTimeout(`${FRANKFURTER_URL}${code}`)
   if (!response.ok) throw new Error(`HTTP ${response.status}`)
   const data = await response.json() as { rates?: Record<string, unknown> }
   const rate = data.rates?.[code]

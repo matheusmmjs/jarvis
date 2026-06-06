@@ -2,6 +2,7 @@ import { readFile, writeFile, mkdir } from 'fs/promises'
 import { join } from 'path'
 import { homedir } from 'os'
 import snapshotData from './data/litellm-snapshot.json'
+import { fetchWithTimeout } from './fetch-utils.js'
 
 export type ModelCosts = {
   inputCostPerToken: number
@@ -94,7 +95,11 @@ function parseLiteLLMEntry(entry: LiteLLMEntry): ModelCosts | null {
 }
 
 async function fetchAndCachePricing(): Promise<Map<string, ModelCosts>> {
-  const response = await fetch(LITELLM_URL)
+  // Bounded: runs on every CLI invocation (the menubar shells out and blocks on
+  // it). Without a timeout a half-open network after wake-from-sleep makes
+  // fetch() hang forever, wedging the menubar's loading spinner. On timeout the
+  // caller's catch falls back to the bundled price snapshot.
+  const response = await fetchWithTimeout(LITELLM_URL)
   if (!response.ok) throw new Error(`HTTP ${response.status}`)
   const data = await response.json() as Record<string, LiteLLMEntry>
   const pricing = new Map<string, ModelCosts>()
