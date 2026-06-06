@@ -1832,15 +1832,23 @@ function warnProviderReadFailureOnce(providerName: string, err: unknown): void {
   }
 }
 
-function warnProviderParseFailureOnce(providerName: string, sourcePath: string, err: unknown): void {
-  const key = `${providerName}:parse-failure`
-  if (warnedProviderReadFailures.has(key)) return
-  warnedProviderReadFailures.add(key)
+// Warn per offending file (so a systemic break surfaces more than one path),
+// but cap per provider per run to avoid a flood. Cached failure markers mean a
+// given broken file is only re-encountered when it changes, so this stays quiet
+// across refreshes.
+const parseFailureCounts = new Map<string, number>()
+const PARSE_FAILURE_WARN_CAP = 5
+
+function warnProviderParseFailure(providerName: string, sourcePath: string, err: unknown): void {
+  const n = (parseFailureCounts.get(providerName) ?? 0) + 1
+  parseFailureCounts.set(providerName, n)
+  if (n > PARSE_FAILURE_WARN_CAP) return
   const msg = err instanceof Error ? err.message : String(err)
+  const tail = n === PARSE_FAILURE_WARN_CAP
+    ? ` (further ${providerName} parse failures this run are suppressed)`
+    : ''
   process.stderr.write(
-    `codeburn: skipping ${providerName} session(s) that failed to parse (${msg}). ` +
-    `First offending file: ${sourcePath}. Further ${providerName} parse failures this run are suppressed; ` +
-    `other sessions still aggregate normally.\n`
+    `codeburn: skipped ${providerName} session that failed to parse: ${sourcePath} (${msg})${tail}\n`
   )
 }
 
@@ -1868,7 +1876,10 @@ async function parseProviderSources(
 
     const cached = section.files[source.path]
     const action = reconcileFile(fp, cached)
-    if (action.action === 'unchanged' && cached && !cachedFileNeedsProviderReparse(providerName, source.path, cached)) {
+    // A cached parse failure at this same fingerprint stays skipped — don't
+    // re-read a file that already threw and hasn't changed. It re-parses only
+    // when the file changes (then `reconcileFile` reports non-'unchanged').
+    if (action.action === 'unchanged' && cached && (cached.failed || !cachedFileNeedsProviderReparse(providerName, source.path, cached))) {
       unchangedSources.push({ source, cached })
     } else {
       changedSources.push({ source, fp })
@@ -1919,9 +1930,13 @@ async function parseProviderSources(
         }
         // A single malformed session file must not abort the entire run — that
         // would silently empty the daily-cache backfill and wipe the trend /
-        // history (issue #441). Skip just this file (its stale cache entry was
-        // already cleared above, so it's excluded) and keep going.
-        warnProviderParseFailureOnce(providerName, source.path, err)
+        // history (issue #441). Record a negative-result marker keyed by the
+        // current fingerprint so we don't re-read + re-throw this unchanged file
+        // on every refresh; it re-parses only if it changes. Empty turns => no
+        // usage contributed.
+        section.files[source.path] = { fingerprint: fp, mcpInventory: [], turns: [], failed: true }
+        ;(diskCache as { _dirty?: boolean })._dirty = true
+        warnProviderParseFailure(providerName, source.path, err)
         continue
       }
     }

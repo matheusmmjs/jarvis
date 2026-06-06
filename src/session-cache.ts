@@ -57,6 +57,11 @@ export type CachedFile = {
   canonicalProjectName?: string
   mcpInventory: string[]
   turns: CachedTurn[]
+  // Negative-result marker: this file threw while parsing at the recorded
+  // fingerprint. Cached so we don't re-read + re-throw it on every refresh; it
+  // is re-parsed only when the file changes (fingerprint differs). Carries no
+  // turns, so it contributes no usage. (issue #441 follow-up)
+  failed?: boolean
 }
 
 export type ProviderSection = {
