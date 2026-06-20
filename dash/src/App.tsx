@@ -8,7 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { MetricCard } from '@/components/MetricCard'
 import { BarList, type BarItem } from '@/components/BarList'
 import { DataTable } from '@/components/DataTable'
-import { UsageChart, DeviceUsageChart } from '@/components/UsageChart'
+import { UsageChart, DeviceUsageChart, type Unit } from '@/components/UsageChart'
 import { DeviceSearchModal } from '@/components/DeviceSearchModal'
 
 const n = (v: number | undefined): number => v ?? 0
@@ -38,10 +38,22 @@ function SideLink({ active, onClick, children }: { active: boolean; onClick: () 
   )
 }
 
+function Stat({ label: lbl, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between text-sm">
+      <span className="text-tertiary-foreground">{lbl}</span>
+      <span className="tabular-nums text-foreground">{value}</span>
+    </div>
+  )
+}
+
 // One device's full dashboard. Remote devices arrive sanitized, so their
 // project and session detail is intentionally absent.
-function DeviceView({ payload, isRemote }: { payload?: Payload; isRemote: boolean }) {
+function DeviceView({ payload, isRemote, unit }: { payload?: Payload; isRemote: boolean; unit: Unit }) {
   const c = payload?.current
+  const daily = payload?.history.daily ?? []
+  const cacheWrite = daily.reduce((s, d) => s + d.cacheWriteTokens, 0)
+  const cacheRead = daily.reduce((s, d) => s + d.cacheReadTokens, 0)
   const toolBars: BarItem[] = c
     ? Object.entries(c.providers).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]).map(([k, v]) => ({ name: k, value: v, display: usd(v) }))
     : []
@@ -61,16 +73,16 @@ function DeviceView({ payload, isRemote }: { payload?: Payload; isRemote: boolea
               {c ? `${fmtNum(c.calls)} calls · ${fmtNum(c.sessions)} sessions` : ' '}
             </div>
             <div className="mt-1 font-display text-4xl tracking-tight tabular-nums text-primary">
-              {c ? usd(c.cost) : <Skeleton className="h-10 w-36" />}
+              {c ? (unit === 'tokens' ? fmtTokens(c.inputTokens + c.outputTokens) : usd(c.cost)) : <Skeleton className="h-10 w-36" />}
             </div>
           </div>
         </div>
         <div className="mt-3 h-64 px-2 pb-2">
-          {!payload ? <Skeleton className="mx-3 mb-3 h-[228px]" /> : <UsageChart daily={payload.history.daily} />}
+          {!payload ? <Skeleton className="mx-3 mb-3 h-[228px]" /> : <UsageChart daily={payload.history.daily} unit={unit} />}
         </div>
       </Card>
 
-      <div className="mb-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+      <div className="mb-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
         {c ? (
           <>
             <MetricCard label="Cost" value={usd(c.cost)} accent />
@@ -82,10 +94,12 @@ function DeviceView({ payload, isRemote }: { payload?: Payload; isRemote: boolea
             <MetricCard label="Calls" value={fmtNum(c.calls)} />
             <MetricCard label="Sessions" value={fmtNum(c.sessions)} />
             <MetricCard label="Cache hit" value={`${(c.cacheHitPercent || 0).toFixed(1)}%`} />
+            <MetricCard label="Cache write" value={fmtTokens(cacheWrite)} />
+            <MetricCard label="Cache read" value={fmtTokens(cacheRead)} />
             <MetricCard label="One-shot" value={c.oneShotRate == null ? '—' : `${Math.round(c.oneShotRate * 100)}%`} />
           </>
         ) : (
-          Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-20" />)
+          Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="h-20" />)
         )}
       </div>
 
@@ -124,6 +138,55 @@ function DeviceView({ payload, isRemote }: { payload?: Payload; isRemote: boolea
         </Panel>
       </div>
 
+      <div className="mb-3 grid gap-3 lg:grid-cols-2">
+        <Panel title="Subagents">
+          <DataTable
+            columns={[
+              { key: 'name', label: 'Subagent' },
+              { key: 'calls', label: 'Calls', num: true },
+              { key: 'cost', label: 'Cost', num: true },
+            ]}
+            rows={(c?.subagents ?? []).slice(0, 10).map((s) => ({ name: s.name, calls: fmtNum(s.calls), cost: usd(s.cost) }))}
+          />
+        </Panel>
+        <Panel title="Skills">
+          <DataTable
+            columns={[
+              { key: 'name', label: 'Skill' },
+              { key: 'turns', label: 'Turns', num: true },
+              { key: 'cost', label: 'Cost', num: true },
+            ]}
+            rows={(c?.skills ?? []).slice(0, 10).map((s) => ({ name: s.name, turns: fmtNum(s.turns), cost: usd(s.cost) }))}
+          />
+        </Panel>
+      </div>
+
+      <div className="mb-3 grid gap-3 lg:grid-cols-2">
+        <Panel title="MCP servers">
+          <DataTable
+            columns={[
+              { key: 'name', label: 'Server' },
+              { key: 'calls', label: 'Calls', num: true },
+            ]}
+            rows={(c?.mcpServers ?? []).slice(0, 10).map((m) => ({ name: m.name, calls: fmtNum(m.calls) }))}
+          />
+        </Panel>
+        <Panel title="Savings & waste">
+          {c ? (
+            <div className="flex flex-col gap-3 py-1">
+              <Stat label="Local-model savings" value={usd(c.localModelSavings?.totalUSD)} />
+              <Stat
+                label={`Retry tax${c.retryTax?.retries ? ` (${fmtNum(c.retryTax.retries)} retries)` : ''}`}
+                value={usd(c.retryTax?.totalUSD)}
+              />
+              <Stat label="Routing waste (potential)" value={usd(c.routingWaste?.totalSavingsUSD)} />
+            </div>
+          ) : (
+            <Skeleton className="h-20" />
+          )}
+        </Panel>
+      </div>
+
       <Panel title="Tools">
         <DataTable
           columns={[
@@ -139,7 +202,7 @@ function DeviceView({ payload, isRemote }: { payload?: Payload; isRemote: boolea
 
 // The "All devices" view: combined totals plus a per-device breakdown. Devices
 // are summed for display only; nothing is merged on the server.
-function CombinedView({ devices }: { devices: DeviceUsage[] }) {
+function CombinedView({ devices, unit }: { devices: DeviceUsage[]; unit: Unit }) {
   const rows = devices.map((d) => {
     const c = d.payload?.current
     return {
@@ -163,11 +226,17 @@ function CombinedView({ devices }: { devices: DeviceUsage[] }) {
   const activities = new Map<string, number>()
   let inTok = 0
   let outTok = 0
+  let cacheWrite = 0
+  let cacheRead = 0
   for (const d of devices) {
     const c = d.payload?.current
     if (!c) continue
     inTok += c.inputTokens
     outTok += c.outputTokens
+    for (const e of d.payload?.history.daily ?? []) {
+      cacheWrite += e.cacheWriteTokens
+      cacheRead += e.cacheReadTokens
+    }
     for (const [k, v] of Object.entries(c.providers)) providers.set(k, (providers.get(k) ?? 0) + v)
     for (const m of c.topModels) models.set(m.name, (models.get(m.name) ?? 0) + m.cost)
     for (const a of c.topActivities) activities.set(a.name, (activities.get(a.name) ?? 0) + a.cost)
@@ -192,19 +261,23 @@ function CombinedView({ devices }: { devices: DeviceUsage[] }) {
         <div className="flex items-end justify-between px-5 pt-4">
           <div>
             <div className="text-xs text-tertiary-foreground">{`${reachable} device${reachable === 1 ? '' : 's'} · ${fmtNum(total.calls)} calls`}</div>
-            <div className="mt-1 font-display text-4xl tracking-tight tabular-nums text-primary">{usd(total.cost)}</div>
+            <div className="mt-1 font-display text-4xl tracking-tight tabular-nums text-primary">
+              {unit === 'tokens' ? fmtTokens(total.tokens) : usd(total.cost)}
+            </div>
           </div>
         </div>
         <div className="mt-3 h-64 px-2 pb-2">
-          <DeviceUsageChart devices={devices} />
+          <DeviceUsageChart devices={devices} unit={unit} />
         </div>
       </Card>
 
-      <div className="mb-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+      <div className="mb-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
         <MetricCard label="Total cost" value={usd(total.cost)} accent />
         <MetricCard label="Tokens" value={fmtTokens(total.tokens)} sub={`in ${fmtTokens(inTok)} / out ${fmtTokens(outTok)}`} />
         <MetricCard label="Calls" value={fmtNum(total.calls)} />
         <MetricCard label="Sessions" value={fmtNum(total.sessions)} />
+        <MetricCard label="Cache write" value={fmtTokens(cacheWrite)} />
+        <MetricCard label="Cache read" value={fmtTokens(cacheRead)} />
         <MetricCard label="Devices" value={String(reachable)} />
       </div>
 
@@ -249,6 +322,7 @@ export function App() {
   const [period, setPeriod] = useState<Period>('month')
   const [provider, setProvider] = useState('all')
   const [view, setView] = useState<string>('all')
+  const [unit, setUnit] = useState<Unit>('cost')
   const [searchOpen, setSearchOpen] = useState(false)
 
   const { data, isError, error, refetch } = useQuery({
@@ -304,6 +378,21 @@ export function App() {
                   )}
                 >
                   {p.label}
+                </button>
+              ))}
+            </div>
+            <div className="flex rounded-md border border-border bg-interactive-secondary p-0.5">
+              {(['cost', 'tokens'] as Unit[]).map((u) => (
+                <button
+                  key={u}
+                  type="button"
+                  onClick={() => setUnit(u)}
+                  className={cn(
+                    'rounded-[5px] px-3 py-1 text-xs font-medium transition-colors',
+                    unit === u ? 'bg-active-primary text-foreground shadow-sm' : 'text-tertiary-foreground hover:text-foreground',
+                  )}
+                >
+                  {u === 'cost' ? 'Cost' : 'Tokens'}
                 </button>
               ))}
             </div>
@@ -370,9 +459,9 @@ export function App() {
             </div>
 
             {showCombined ? (
-              <CombinedView devices={devices} />
+              <CombinedView devices={devices} unit={unit} />
             ) : (
-              <DeviceView payload={primary?.payload} isRemote={!!viewing && !viewing.local} />
+              <DeviceView payload={primary?.payload} isRemote={!!viewing && !viewing.local} unit={unit} />
             )}
 
             {isError && (

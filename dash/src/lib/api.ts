@@ -35,6 +35,12 @@ export type Current = {
   topProjects: Array<{ name: string; cost: number; sessions: number; avgCostPerSession: number }>
   tools: Array<{ name: string; calls: number }>
   subagents: Array<{ name: string; calls: number; cost: number }>
+  skills: Array<{ name: string; turns: number; cost: number }>
+  mcpServers: Array<{ name: string; calls: number }>
+  modelEfficiency: Array<{ name: string; costPerEdit: number; oneShotRate: number }>
+  localModelSavings: { totalUSD: number }
+  retryTax: { totalUSD: number; retries: number }
+  routingWaste: { totalSavingsUSD: number }
 }
 
 export type Payload = {
