@@ -359,9 +359,11 @@ export function App() {
     <div className="min-h-screen bg-outer-background p-2.5">
       <div className="flex h-[calc(100vh-20px)] flex-col gap-2.5">
         <header className="flex h-12 shrink-0 items-center gap-4 rounded-md border border-border bg-card px-5 shadow-[0_2px_8px_rgba(0,0,0,0.03)]">
-          <div className="flex items-center gap-1.5">
-            <img src="/codeburn-flame.png" alt="CodeBurn" className="h-7 w-auto" />
-            <span className="font-display text-lg tracking-wide text-foreground">CodeBurn</span>
+          <div className="flex items-center gap-2">
+            <img src="/codeburn-logo.png" alt="CodeBurn" className="h-6 w-6" />
+            <span className="text-lg font-semibold tracking-[-0.02em] text-foreground">
+              Code<span className="text-[#e8553a]">Burn</span>
+            </span>
             <span className="ml-1 text-[11px] font-light uppercase tracking-[0.14em] text-tertiary-foreground">usage</span>
           </div>
 
@@ -449,6 +451,43 @@ export function App() {
               <p className="text-[11px] leading-relaxed text-tertiary-foreground">
                 Local only. Nothing leaves your machine; only totals are shared between your devices.
               </p>
+              <div className="mt-3 flex items-center gap-1">
+                <a
+                  href="https://codeburn.app/"
+                  target="_blank"
+                  rel="noreferrer"
+                  title="codeburn.app"
+                  className="flex h-7 w-7 items-center justify-center rounded-md text-tertiary-foreground transition-colors hover:bg-interactive-secondary hover:text-foreground"
+                >
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.6">
+                    <circle cx="12" cy="12" r="9" />
+                    <path d="M3 12h18" />
+                    <path d="M12 3c2.5 2.7 2.5 15.3 0 18M12 3c-2.5 2.7-2.5 15.3 0 18" />
+                  </svg>
+                </a>
+                <a
+                  href="https://discord.com/invite/w2sw8mCqep"
+                  target="_blank"
+                  rel="noreferrer"
+                  title="Discord"
+                  className="flex h-7 w-7 items-center justify-center rounded-md text-tertiary-foreground transition-colors hover:bg-interactive-secondary hover:text-foreground"
+                >
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                    <path d="M20.317 4.369A19.79 19.79 0 0 0 16.558 3c-.2.36-.43.85-.59 1.23a18.27 18.27 0 0 0-5.93 0A12.6 12.6 0 0 0 9.44 3 19.7 19.7 0 0 0 5.68 4.37C2.9 8.46 2.14 12.45 2.52 16.38a19.9 19.9 0 0 0 6.07 3.08c.49-.67.93-1.38 1.3-2.13-.71-.27-1.4-.6-2.04-.99.17-.13.34-.26.5-.4 3.93 1.84 8.18 1.84 12.06 0 .17.14.33.27.5.4-.65.39-1.33.72-2.05.99.38.75.81 1.46 1.3 2.13a19.9 19.9 0 0 0 6.07-3.08c.45-4.55-.77-8.5-3.2-12.01zM9.69 14.5c-1.18 0-2.15-1.08-2.15-2.42 0-1.33.95-2.42 2.15-2.42 1.2 0 2.17 1.09 2.15 2.42 0 1.34-.95 2.42-2.15 2.42zm4.62 0c-1.18 0-2.15-1.08-2.15-2.42 0-1.33.95-2.42 2.15-2.42 1.2 0 2.17 1.09 2.15 2.42 0 1.34-.94 2.42-2.15 2.42z" />
+                  </svg>
+                </a>
+                <a
+                  href="https://x.com/_codeburn"
+                  target="_blank"
+                  rel="noreferrer"
+                  title="X"
+                  className="flex h-7 w-7 items-center justify-center rounded-md text-tertiary-foreground transition-colors hover:bg-interactive-secondary hover:text-foreground"
+                >
+                  <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor">
+                    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24h-6.65l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                  </svg>
+                </a>
+              </div>
             </div>
           </aside>
 
