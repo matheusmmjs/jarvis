@@ -1,0 +1,62 @@
+import { clsx, type ClassValue } from 'clsx'
+import { twMerge } from 'tailwind-merge'
+
+export function cn(...inputs: ClassValue[]): string {
+  return twMerge(clsx(inputs))
+}
+
+export function usd(n: number | undefined | null): string {
+  const v = n == null || !isFinite(n) ? 0 : n
+  const s = v >= 1 || v === 0 ? v.toFixed(2) : v >= 0.01 ? v.toFixed(3) : v.toFixed(2)
+  const [int, dec] = s.split('.')
+  return '$' + int!.replace(/\B(?=(\d{3})+(?!\d))/g, ',') + (dec ? '.' + dec : '')
+}
+
+export function fmtTokens(n: number | undefined | null): string {
+  const v = n == null || !isFinite(n) ? 0 : n
+  if (v >= 1e9) return (v / 1e9).toFixed(2) + 'B'
+  if (v >= 1e6) return (v / 1e6).toFixed(1) + 'M'
+  if (v >= 1e3) return (v / 1e3).toFixed(1) + 'K'
+  return String(Math.round(v))
+}
+
+export function fmtNum(n: number | undefined | null): string {
+  return (n ?? 0).toLocaleString()
+}
+
+export function compactUsd(n: number): string {
+  if (n >= 1e6) return '$' + (n / 1e6).toFixed(1) + 'M'
+  if (n >= 1e3) return '$' + (n / 1e3).toFixed(n >= 1e4 ? 0 : 1) + 'k'
+  return '$' + Math.round(n)
+}
+
+// Warm orange -> gold ramp for stacked series (mirrors --chart-* tokens).
+export const CHART_COLORS = [
+  '#ff8c42', '#ffa94d', '#f97316', '#ffc35e', '#fb923c',
+  '#fbbf24', '#f59e0b', '#fdba74', '#eab308', '#d97742',
+]
+
+const MODEL_LABELS: Record<string, string> = {
+  'claude-opus-4-8': 'Opus 4.8',
+  'claude-opus-4-6': 'Opus 4.6',
+  'claude-opus-4-7': 'Opus 4.7',
+  'claude-sonnet-4-6': 'Sonnet 4.6',
+  'claude-sonnet-4-5': 'Sonnet 4.5',
+  'claude-haiku-4-5-20251001': 'Haiku 4.5',
+  'grok-build-0.1': 'Grok Build',
+  'cursor-auto': 'Cursor',
+  'composer-2.5': 'Composer 2.5',
+}
+
+// Prettify a model id for chart legends. Display-name fields (current.topModels)
+// already arrive clean; history rows carry raw ids, so we map the common ones
+// and lightly clean the rest.
+export function label(key: string): string {
+  if (MODEL_LABELS[key]) return MODEL_LABELS[key]
+  if (key === 'Other' || key === 'unknown') return key
+  return key
+    .replace(/^gpt-/i, 'GPT-')
+    .replace(/-(\d{8,})$/, '')
+    .replace(/-/g, ' ')
+    .replace(/\b\w/g, (c) => c.toUpperCase())
+}

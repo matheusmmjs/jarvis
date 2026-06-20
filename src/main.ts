@@ -13,6 +13,8 @@ import { CATEGORY_LABELS, type DateRange, type ProjectSummary, type TaskCategory
 import { aggregateModelEfficiency } from './model-efficiency.js'
 import { buildPeriodData, buildMenubarPayloadForRange } from './usage-aggregator.js'
 import { renderDashboard } from './dashboard.js'
+import { renderOverview } from './overview.js'
+import { runWebDashboard } from './web-dashboard.js'
 import { hostname } from 'os'
 import { runShareServer } from './sharing/share-run.js'
 import { addRemote, linkRemote, pullDevices, renderDevices } from './sharing/host.js'
@@ -35,6 +37,14 @@ import { createRequire } from 'node:module'
 const require = createRequire(import.meta.url)
 const { version } = require('../package.json')
 import { loadCurrency, getCurrency, isValidCurrencyCode } from './currency.js'
+
+// A downstream reader that closes the pipe early (`| head`, quitting `less`, or
+// a missing command) makes stdout writes fail with EPIPE. Exit cleanly rather
+// than crashing with an unhandled error event.
+process.stdout.on('error', (err: NodeJS.ErrnoException) => {
+  if (err.code === 'EPIPE') process.exit(0)
+  throw err
+})
 
 function collect(val: string, acc: string[]): string[] {
   acc.push(val)
@@ -537,6 +547,58 @@ program
     }
     const results = await pullDevices(localGetUsage, { period: opts.period }, hostname(), {})
     process.stdout.write('\n' + renderDevices(results))
+  })
+
+program
+  .command('overview')
+  .description('Plain-text usage overview, copy-pasteable (defaults to this month)')
+  .option('-p, --period <period>', 'Period: today, week, 30days, month, all', 'month')
+  .option('--from <date>', 'Start date (YYYY-MM-DD). Overrides --period when set')
+  .option('--to <date>', 'End date (YYYY-MM-DD). Overrides --period when set')
+  .option('--provider <provider>', 'Filter by provider (e.g. claude, codex, copilot)', 'all')
+  .option('--project <name>', 'Show only projects matching name (repeatable)', collect, [])
+  .option('--exclude <name>', 'Exclude projects matching name (repeatable)', collect, [])
+  .option('--no-color', 'Disable ANSI colors')
+  .action(async (opts) => {
+    assertProvider(opts.provider, 'overview')
+    await loadPricing()
+    let customRange: DateRange | null = null
+    try {
+      customRange = parseDateRangeFlags(opts.from, opts.to)
+    } catch (err) {
+      console.error(`\n  Error: ${err instanceof Error ? err.message : String(err)}\n`)
+      process.exit(1)
+    }
+    const { range, label } = customRange
+      ? { range: customRange, label: formatDateRangeLabel(opts.from, opts.to) }
+      : getDateRange(toPeriod(opts.period))
+    const projects = filterProjectsByName(await parseAllSessions(range, opts.provider), opts.project, opts.exclude)
+    process.stdout.write(renderOverview(projects, { label, color: opts.color }))
+  })
+
+program
+  .command('web')
+  .description('Open the local web dashboard in your browser')
+  .option('-p, --period <period>', 'Initial period: today, week, 30days, month, all', 'month')
+  .option('--from <date>', 'Start date (YYYY-MM-DD)')
+  .option('--to <date>', 'End date (YYYY-MM-DD)')
+  .option('--provider <provider>', 'Filter by provider (e.g. claude, codex, copilot)', 'all')
+  .option('--project <name>', 'Show only projects matching name (repeatable)', collect, [])
+  .option('--exclude <name>', 'Exclude projects matching name (repeatable)', collect, [])
+  .option('--port <number>', 'Port to listen on (falls back to a free port if taken)', parseInteger, 4747)
+  .option('--no-open', 'Do not open the browser automatically')
+  .action(async (opts) => {
+    assertProvider(opts.provider, 'web')
+    await runWebDashboard({
+      period: opts.period,
+      provider: opts.provider,
+      from: opts.from,
+      to: opts.to,
+      project: opts.project,
+      exclude: opts.exclude,
+      port: opts.port,
+      open: opts.open,
+    })
   })
 
 program

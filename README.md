@@ -65,6 +65,38 @@ codeburn menubar
 
 Requires **Node.js 22.13+** and at least one supported tool with session data on disk. For Cursor and OpenCode, `better-sqlite3` installs automatically.
 
+## Your month at a glance
+
+```bash
+codeburn overview                                    # this month, clean tables
+codeburn overview --no-color                         # plain text, ready to paste
+codeburn overview --from 2026-06-01 --to 2026-06-15  # any date range
+codeburn overview -p all                             # all time
+codeburn overview --provider claude                  # one tool only
+```
+
+`codeburn overview` prints a copy-pasteable summary of where your AI spend went: totals (cost, tokens, cache hit), a breakdown by tool and by top model, your highest-value days, top projects, a per-day table, and activity and tool usage. Pipe it anywhere (into `pbcopy`, a PR, Slack, or a tweet); color drops automatically when the output is not a terminal, or pass `--no-color`.
+
+```text
+CodeBurn  June 2026
+
+Totals
+  Cost       $2,795.10
+  Tokens     3.49B   in 23.9M / out 20.2M / cache-w 72.5M / cache-r 3.38B
+  Calls      14,755   sessions 753
+  Cache hit  99.3%
+
+By tool
+┌──────────┬───────────┬────────┬───────┐
+│ Tool     │      Cost │ Tokens │ Share │
+├──────────┼───────────┼────────┼───────┤
+│ claude   │ $2,662.37 │  3.34B │   95% │
+│ codex    │   $119.12 │ 128.1M │    4% │
+└──────────┴───────────┴────────┴───────┘
+
+(plus Top models, Highest-value days, Top projects, a per-day table, By activity, and Tools)
+```
+
 ## Find and fix waste
 
 ```bash
@@ -213,7 +245,7 @@ If multiple providers have session data on disk, press `p` in the dashboard to t
 
 Each provider doc lists the exact data location, storage format, and known quirks. Linux and Windows paths are detected automatically. If a path has changed or is wrong, please [open an issue](https://github.com/getagentseal/codeburn/issues).
 
-The `--provider` flag filters any command to a single provider: `codeburn report --provider claude`, `codeburn today --provider codex`, `codeburn export --provider cursor`. Works on all commands: `report`, `today`, `month`, `status`, `export`, `optimize`, `compare`, `yield`.
+The `--provider` flag filters any command to a single provider: `codeburn report --provider claude`, `codeburn today --provider codex`, `codeburn export --provider cursor`. Works on all commands: `report`, `today`, `month`, `overview`, `status`, `export`, `optimize`, `compare`, `yield`.
 
 Adding a new provider is a single file. See `src/providers/codex.ts` for an example.
 
@@ -231,6 +263,7 @@ Run `codeburn` for the dashboard, or use a subcommand below. Most commands also 
 | `codeburn` | Interactive dashboard, last 7 days (the default view) |
 | `codeburn today` | Today's usage |
 | `codeburn month` | This calendar month's usage |
+| `codeburn overview` | Plain-text monthly summary, copy-pasteable (`--no-color`, `--from`/`--to`) |
 | `codeburn report -p 30days` | Rolling 30-day window |
 | `codeburn report -p all` | Every recorded session |
 | `codeburn report --from 2026-04-01 --to 2026-04-10` | An exact date range |
