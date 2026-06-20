@@ -15,7 +15,9 @@ import { pullDevices, linkRemote } from './sharing/host.js'
 import { browse } from './sharing/discovery.js'
 import { loadOrCreateIdentity } from './sharing/identity.js'
 import { pairingCode } from './sharing/pairing.js'
-import { getSharingDir, loadRemotes } from './sharing/store.js'
+import { getSharingDir, loadRemotes, loadShareAlways, saveShareAlways } from './sharing/store.js'
+import { ShareController } from './sharing/share-controller.js'
+import { sanitizeForSharing } from './sharing/sanitize.js'
 
 function readBody(req: import('http').IncomingMessage): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -88,6 +90,18 @@ export async function runWebDashboard(opts: {
 }): Promise<void> {
   await loadPricing()
   const dashDir = resolveDashDir()
+
+  // Sharing this device serves the SANITIZED aggregate (no project names/paths
+  // or per-session detail), unlike the local /api/usage which shows everything.
+  const shareGetUsage = async (q: { period?: string; from?: string; to?: string }) => {
+    const customRange = parseDateRangeFlags(q.from, q.to)
+    const periodInfo = customRange
+      ? { range: customRange, label: formatDateRangeLabel(q.from, q.to) }
+      : getDateRange(toPeriod(q.period ?? opts.period))
+    return sanitizeForSharing(await buildMenubarPayloadForRange(periodInfo, { provider: 'all', optimize: false }))
+  }
+  const share = new ShareController(shareGetUsage)
+  if (await loadShareAlways()) await share.start(true).catch(() => {})
 
   const server = createServer(async (req, res) => {
     try {
@@ -197,6 +211,42 @@ export async function runWebDashboard(opts: {
         return
       }
 
+      // Share-this-device controls. Status carries the pending pairing requests
+      // so the SPA can poll one endpoint and surface approvals in the browser.
+      if (url.pathname === '/api/share/status') {
+        res.writeHead(200, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' })
+        res.end(JSON.stringify(await share.status()))
+        return
+      }
+      if (url.pathname === '/api/share/start' && req.method === 'POST') {
+        const body = JSON.parse((await readBody(req)) || '{}') as { always?: boolean }
+        let startError: string | undefined
+        try {
+          await share.start(!!body.always)
+          await saveShareAlways(!!body.always)
+        } catch (err) {
+          // e.g. EADDRINUSE when a CLI `codeburn share` already holds the port.
+          startError = err instanceof Error ? err.message : String(err)
+        }
+        res.writeHead(200, { 'content-type': 'application/json; charset=utf-8' })
+        res.end(JSON.stringify({ ...(await share.status()), error: startError }))
+        return
+      }
+      if (url.pathname === '/api/share/stop' && req.method === 'POST') {
+        await share.stop()
+        await saveShareAlways(false)
+        res.writeHead(200, { 'content-type': 'application/json; charset=utf-8' })
+        res.end(JSON.stringify(await share.status()))
+        return
+      }
+      if (url.pathname === '/api/share/approve' && req.method === 'POST') {
+        const body = JSON.parse((await readBody(req)) || '{}') as { id?: string; approve?: boolean }
+        const ok = typeof body.id === 'string' && share.resolvePending(body.id, !!body.approve)
+        res.writeHead(200, { 'content-type': 'application/json; charset=utf-8' })
+        res.end(JSON.stringify({ ok }))
+        return
+      }
+
       if (!dashDir) {
         res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' })
         res.end(NOT_BUILT_PAGE)
@@ -244,6 +294,11 @@ export async function runWebDashboard(opts: {
   }
   process.stdout.write(`\n  CodeBurn dashboard at ${url}\n  Press Ctrl+C to stop.\n\n`)
   if (opts.open) openBrowser(url)
+
+  // Withdraw the mDNS advertisement and close the share server cleanly on exit.
+  process.on('SIGINT', () => {
+    void share.stop().finally(() => process.exit(0))
+  })
 
   await new Promise<never>(() => {
     /* run until interrupted */

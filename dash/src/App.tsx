@@ -1,7 +1,17 @@
 import { useMemo, useState, type ReactNode } from 'react'
-import { keepPreviousData, useQuery } from '@tanstack/react-query'
+import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query'
 
-import { fetchDevices, PERIODS, type DeviceUsage, type Payload, type Period } from '@/lib/api'
+import {
+  approvePairing,
+  fetchDevices,
+  PERIODS,
+  shareStatus,
+  startShare,
+  stopShare,
+  type DeviceUsage,
+  type Payload,
+  type Period,
+} from '@/lib/api'
 import { cn, fmtNum, fmtTokens, usd } from '@/lib/utils'
 import { Card } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -35,6 +45,19 @@ function SideLink({ active, onClick, children }: { active: boolean; onClick: () 
       <span className={cn('h-1.5 w-1.5 shrink-0 rounded-full', active ? 'bg-primary' : 'bg-transparent')} />
       <span className="truncate">{children}</span>
     </button>
+  )
+}
+
+function Switch({ on }: { on: boolean }) {
+  return (
+    <span
+      className={cn(
+        'relative inline-flex h-4 w-7 shrink-0 items-center rounded-full transition-colors',
+        on ? 'bg-primary' : 'bg-interactive-secondary ring-1 ring-inset ring-border',
+      )}
+    >
+      <span className={cn('inline-block h-3 w-3 transform rounded-full bg-card shadow-sm transition-transform', on ? 'translate-x-3.5' : 'translate-x-0.5')} />
+    </span>
   )
 }
 
@@ -325,11 +348,36 @@ export function App() {
   const [unit, setUnit] = useState<Unit>('cost')
   const [searchOpen, setSearchOpen] = useState(false)
 
+  const qc = useQueryClient()
+
   const { data, isError, error, refetch } = useQuery({
     queryKey: ['devices', period, provider],
     queryFn: () => fetchDevices(period, provider),
     placeholderData: keepPreviousData,
   })
+
+  const { data: shareInfo } = useQuery({
+    queryKey: ['share'],
+    queryFn: shareStatus,
+    refetchInterval: (q) => (q.state.data?.sharing ? 2500 : 8000),
+  })
+
+  const refreshShare = () => qc.invalidateQueries({ queryKey: ['share'] })
+  const toggleShare = async () => {
+    if (shareInfo?.sharing) await stopShare()
+    else await startShare(shareInfo?.always ?? false)
+    refreshShare()
+  }
+  const toggleAlways = async () => {
+    await startShare(!(shareInfo?.always ?? false))
+    refreshShare()
+  }
+  const respondPairing = async (id: string, approve: boolean) => {
+    await approvePairing(id, approve)
+    refreshShare()
+    void refetch()
+  }
+  const pending = shareInfo?.pending ?? []
 
   // Only show devices we could actually reach; an unreachable paired device is
   // hidden entirely rather than shown as an error row.
@@ -447,6 +495,34 @@ export function App() {
               Search local devices
             </button>
 
+            <div className="border-t border-border pt-4">
+              <p className="mb-2 px-2.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-heading">Share</p>
+              <button
+                type="button"
+                onClick={() => void toggleShare()}
+                className="flex w-full items-center justify-between rounded-md px-2.5 py-1.5 text-[13.5px] text-foreground transition-colors hover:bg-interactive-secondary"
+              >
+                <span>Share this device</span>
+                <Switch on={!!shareInfo?.sharing} />
+              </button>
+              {shareInfo?.sharing && (
+                <div className="mt-1.5 px-2.5">
+                  <p className="text-[11px] leading-relaxed text-tertiary-foreground">
+                    Discoverable as &ldquo;{shareInfo.name}&rdquo; · {shareInfo.peers} paired
+                  </p>
+                  <label className="mt-2 flex cursor-pointer items-center gap-2 text-xs text-muted-foreground">
+                    <input
+                      type="checkbox"
+                      checked={shareInfo.always}
+                      onChange={() => void toggleAlways()}
+                      className="h-3.5 w-3.5 accent-[#1f8a5b]"
+                    />
+                    Keep sharing always
+                  </label>
+                </div>
+              )}
+            </div>
+
             <div className="mt-auto border-t border-border pt-4">
               <p className="text-[11px] leading-relaxed text-tertiary-foreground">
                 Local only. Nothing leaves your machine; only totals are shared between your devices.
@@ -511,6 +587,44 @@ export function App() {
       </div>
 
       {searchOpen && <DeviceSearchModal onClose={() => setSearchOpen(false)} onPaired={() => void refetch()} />}
+
+      {pending.length > 0 && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
+          <div className="w-full max-w-sm overflow-hidden rounded-lg border border-border bg-card shadow-[0_24px_60px_-20px_rgba(0,0,0,0.35)]">
+            <div className="border-b border-border px-5 py-3.5">
+              <h2 className="text-sm font-semibold text-foreground">Incoming pairing request</h2>
+            </div>
+            <div className="flex flex-col gap-3 px-5 py-4">
+              {pending.map((p) => (
+                <div key={p.id} className="rounded-md border border-border px-3.5 py-3">
+                  <p className="text-sm text-foreground">
+                    &ldquo;{p.name}&rdquo; wants to pair with this device.
+                  </p>
+                  <p className="mt-1 text-xs text-tertiary-foreground">
+                    Confirm this code matches on that device: <span className="font-mono text-foreground">{p.code}</span>
+                  </p>
+                  <div className="mt-3 flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => void respondPairing(p.id, true)}
+                      className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-opacity hover:opacity-90"
+                    >
+                      Approve
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void respondPairing(p.id, false)}
+                      className="rounded-md border border-border px-3 py-1.5 text-xs text-tertiary-foreground transition-colors hover:text-foreground"
+                    >
+                      Deny
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

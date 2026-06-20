@@ -52,3 +52,13 @@ export function loadRemotes(dir: string = getSharingDir()): Promise<RemoteDevice
 export function saveRemotes(remotes: RemoteDevice[], dir: string = getSharingDir()): Promise<void> {
   return writeJson(join(dir, 'remote-devices.json'), remotes)
 }
+
+// Whether the dashboard should keep sharing on (opt-in always-live). Persisted
+// so `codeburn web` resumes the chosen state on launch.
+export async function loadShareAlways(dir: string = getSharingDir()): Promise<boolean> {
+  const s = await readJson(join(dir, 'web-share.json'), { always: false } as { always?: boolean })
+  return !!s.always
+}
+export function saveShareAlways(always: boolean, dir: string = getSharingDir()): Promise<void> {
+  return writeJson(join(dir, 'web-share.json'), { always })
+}

@@ -137,3 +137,31 @@ export async function pairDevice(d: DiscoveredDevice): Promise<{ ok: boolean; na
   })
   return res.json() as Promise<{ ok: boolean; name?: string; error?: string }>
 }
+
+export type PendingPairing = { id: string; name: string; code: string }
+export type ShareStatus = {
+  sharing: boolean
+  name: string
+  port: number
+  always: boolean
+  peers: number
+  pending: PendingPairing[]
+}
+
+const postJson = (path: string, body: unknown) =>
+  fetch(path, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })
+
+export async function shareStatus(): Promise<ShareStatus> {
+  const res = await fetch('/api/share/status')
+  if (!res.ok) throw new Error(`share status failed (${res.status})`)
+  return res.json() as Promise<ShareStatus>
+}
+export async function startShare(always: boolean): Promise<ShareStatus> {
+  return (await postJson('/api/share/start', { always })).json() as Promise<ShareStatus>
+}
+export async function stopShare(): Promise<ShareStatus> {
+  return (await postJson('/api/share/stop', {})).json() as Promise<ShareStatus>
+}
+export async function approvePairing(id: string, approve: boolean): Promise<{ ok: boolean }> {
+  return (await postJson('/api/share/approve', { id, approve })).json() as Promise<{ ok: boolean }>
+}
