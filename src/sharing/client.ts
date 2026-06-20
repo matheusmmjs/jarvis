@@ -24,7 +24,7 @@ function call(
   path: string,
   headers: Record<string, string> = {},
   body?: string,
-  timeoutMs = 8000,
+  timeoutMs = 15000,
 ): Promise<Response> {
   return new Promise((resolve, reject) => {
     const req = request(
@@ -37,6 +37,9 @@ function call(
         cert: ep.identity.cert,
         rejectUnauthorized: false,
         checkServerIdentity: () => undefined,
+        // Fresh socket per request so the pinned-fingerprint check always reads
+        // this connection's certificate, never a pooled/keep-alive one.
+        agent: false,
         headers: { ...headers, ...(body ? { 'content-type': 'application/json' } : {}) },
       },
       (res) => {

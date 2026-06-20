@@ -72,6 +72,21 @@ export class ShareServer {
       res.writeHead(code, { 'content-type': 'application/json' })
       res.end(JSON.stringify(body))
     }
+    try {
+      await this.route(url, req, res, json)
+    } catch (err) {
+      // Never leave a request hanging (a hung peer makes the caller time out
+      // and drop this device); always answer, even on an internal error.
+      if (!res.headersSent) json(500, { error: err instanceof Error ? err.message : String(err) })
+    }
+  }
+
+  private async route(
+    url: URL,
+    req: IncomingMessage,
+    res: ServerResponse,
+    json: (code: number, body: unknown) => void,
+  ): Promise<void> {
 
     // Unauthenticated: just enough for a joiner to learn who this is and whether
     // pairing is currently open. No usage data here.
