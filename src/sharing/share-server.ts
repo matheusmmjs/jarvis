@@ -3,10 +3,13 @@ import type { IncomingMessage, ServerResponse } from 'http'
 import type { TLSSocket } from 'tls'
 import type { AddressInfo } from 'net'
 
-import { certFingerprint, PeerStore, PairingWindow } from './pairing.js'
+import { certFingerprint, pairingCode, PeerStore, PairingWindow } from './pairing.js'
 import type { Identity } from './identity.js'
 
 export type UsageQuery = { period?: string; from?: string; to?: string }
+
+// An approve-style pairing request, surfaced to the user on the sharing device.
+export type PairRequest = { name: string; fingerprint: string; code: string }
 
 export type ShareServerOptions = {
   identity: Identity
@@ -14,6 +17,9 @@ export type ShareServerOptions = {
   getUsage: (query: UsageQuery) => Promise<unknown>
   // Called after a successful pairing so the caller can persist the peer list.
   onPaired?: () => void
+  // Enables the interactive approve flow (POST /api/peer/pair-request): return
+  // true to accept. The user confirms the matching `code` shown on both devices.
+  approve?: (req: PairRequest) => Promise<boolean>
 }
 
 // A device's HTTPS sharing endpoint. Mutual TLS: the server presents its own
@@ -95,6 +101,30 @@ export class ShareServer {
       const peer = this.opts.peers.pair(clientFp, name)
       this.opts.onPaired?.()
       json(200, { token: peer.token, name: this.opts.identity.name, fingerprint: this.opts.identity.fingerprint })
+      return
+    }
+
+    if (url.pathname === '/api/peer/pair-request' && req.method === 'POST') {
+      const clientFp = this.clientFingerprint(req)
+      if (!clientFp) {
+        json(400, { error: 'client certificate required' })
+        return
+      }
+      if (!this.opts.approve) {
+        json(403, { error: 'this device is not accepting new pairings' })
+        return
+      }
+      const body = safeJson(await readBody(req)) as { name?: unknown } | null
+      const name = typeof body?.name === 'string' ? body.name : 'device'
+      const code = pairingCode(this.opts.identity.fingerprint, clientFp)
+      const approved = await this.opts.approve({ name, fingerprint: clientFp, code })
+      if (!approved) {
+        json(403, { error: 'pairing declined' })
+        return
+      }
+      const peer = this.opts.peers.pair(clientFp, name)
+      this.opts.onPaired?.()
+      json(200, { token: peer.token, name: this.opts.identity.name, fingerprint: this.opts.identity.fingerprint, code })
       return
     }
 

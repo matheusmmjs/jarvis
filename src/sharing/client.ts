@@ -67,6 +67,12 @@ export function pair(ep: PeerEndpoint, pin: string, name: string): Promise<Respo
   return call(ep, 'POST', '/api/peer/pair', {}, JSON.stringify({ pin, name }))
 }
 
+// Approve-style pairing: no PIN. The peer prompts its user to approve; this
+// request stays open until they accept or decline.
+export function pairRequest(ep: PeerEndpoint, name: string): Promise<Response> {
+  return call(ep, 'POST', '/api/peer/pair-request', {}, JSON.stringify({ name }))
+}
+
 export function fetchUsage(ep: PeerEndpoint, token: string, query: UsageQuery = {}): Promise<Response> {
   const params = new URLSearchParams()
   for (const [k, v] of Object.entries(query)) if (v) params.set(k, v)

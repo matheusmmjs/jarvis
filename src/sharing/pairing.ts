@@ -28,6 +28,16 @@ export function mintToken(): string {
   return randomBytes(32).toString('base64url')
 }
 
+// Short confirmation code shown on BOTH devices during an approve-style pairing.
+// Derived from the two cert fingerprints, so a man-in-the-middle (whose cert
+// differs) yields a different code; the user confirms the codes match. This is
+// the Bluetooth/SAS "do these numbers match?" check, not a secret.
+export function pairingCode(fingerprintA: string, fingerprintB: string): string {
+  const [lo, hi] = [fingerprintA, fingerprintB].sort()
+  const digest = createHash('sha256').update(`${lo}|${hi}`).digest()
+  return (digest.readUInt16BE(0) % 1000).toString().padStart(3, '0')
+}
+
 // An open pairing window on the device being added: a one-time PIN that expires.
 // `now` is injectable so the lifecycle is deterministic in tests.
 export class PairingWindow {
