@@ -13,6 +13,7 @@ import { CATEGORY_LABELS, type DateRange, type ProjectSummary, type TaskCategory
 import { aggregateModelEfficiency } from './model-efficiency.js'
 import { buildPeriodData, buildMenubarPayloadForRange } from './usage-aggregator.js'
 import { renderDashboard } from './dashboard.js'
+import { renderOverview } from './overview.js'
 import { formatDateRangeLabel, parseDateRangeFlags, parseDayFlag, parseDaysFlag, getDateRange, toPeriod, type Period } from './cli-date.js'
 import { runOptimize } from './optimize.js'
 import { renderCompare } from './compare.js'
@@ -466,6 +467,33 @@ program
     }
     const customRangeLabel = customRange ? formatDateRangeLabel(opts.from, opts.to) : undefined
     await renderDashboard(period, opts.provider, opts.refresh, opts.project, opts.exclude, customRange, customRangeLabel, daySelection?.day)
+  })
+
+program
+  .command('overview')
+  .description('Plain-text usage overview, copy-pasteable (defaults to this month)')
+  .option('-p, --period <period>', 'Period: today, week, 30days, month, all', 'month')
+  .option('--from <date>', 'Start date (YYYY-MM-DD). Overrides --period when set')
+  .option('--to <date>', 'End date (YYYY-MM-DD). Overrides --period when set')
+  .option('--provider <provider>', 'Filter by provider (e.g. claude, codex, copilot)', 'all')
+  .option('--project <name>', 'Show only projects matching name (repeatable)', collect, [])
+  .option('--exclude <name>', 'Exclude projects matching name (repeatable)', collect, [])
+  .option('--no-color', 'Disable ANSI colors')
+  .action(async (opts) => {
+    assertProvider(opts.provider, 'overview')
+    await loadPricing()
+    let customRange: DateRange | null = null
+    try {
+      customRange = parseDateRangeFlags(opts.from, opts.to)
+    } catch (err) {
+      console.error(`\n  Error: ${err instanceof Error ? err.message : String(err)}\n`)
+      process.exit(1)
+    }
+    const { range, label } = customRange
+      ? { range: customRange, label: formatDateRangeLabel(opts.from, opts.to) }
+      : getDateRange(toPeriod(opts.period))
+    const projects = filterProjectsByName(await parseAllSessions(range, opts.provider), opts.project, opts.exclude)
+    process.stdout.write(renderOverview(projects, { label, color: opts.color }))
   })
 
 
