@@ -285,7 +285,7 @@ export function App() {
     <div className="min-h-screen bg-outer-background p-2.5">
       <div className="flex h-[calc(100vh-20px)] flex-col gap-2.5">
         <header className="flex h-12 shrink-0 items-center gap-4 rounded-md border border-border bg-card px-5 shadow-[0_2px_8px_rgba(0,0,0,0.03)]">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             <img src="/codeburn-flame.png" alt="CodeBurn" className="h-7 w-auto" />
             <span className="font-display text-lg tracking-wide text-foreground">CodeBurn</span>
             <span className="ml-1 text-[11px] font-light uppercase tracking-[0.14em] text-tertiary-foreground">usage</span>
