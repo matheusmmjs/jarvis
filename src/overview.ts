@@ -4,18 +4,17 @@ import { homedir } from 'os'
 
 import { CATEGORY_LABELS, type ProjectSummary, type TaskCategory } from './types.js'
 import { formatCost as baseCost } from './currency.js'
-import { formatTokens as baseTokens } from './format.js'
 import { getShortModelName } from './models.js'
 import { dateKey } from './day-aggregator.js'
 
-// Display-only helpers. The shared formatters omit thousands separators and stop
-// at M; aggregation uses raw numbers, these only affect rendering.
+// Display-only helpers. The shared formatters omit thousands separators and
+// abbreviate; here we show full, comma-grouped numbers so the tables read like
+// a precise statement. Aggregation uses raw numbers; these only affect render.
 function formatCost(usd: number): string {
   return baseCost(usd).replace(/(\d)(?=(\d{3})+(\.|$))/g, '$1,')
 }
 function formatTokens(n: number): string {
-  if (n >= 1_000_000_000) return `${(n / 1_000_000_000).toFixed(2)}B`
-  return baseTokens(n)
+  return Math.round(n).toLocaleString()
 }
 function projectName(p: ProjectSummary): string {
   const path = p.projectPath
