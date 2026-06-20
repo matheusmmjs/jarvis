@@ -14,6 +14,7 @@ import { aggregateModelEfficiency } from './model-efficiency.js'
 import { buildPeriodData, buildMenubarPayloadForRange } from './usage-aggregator.js'
 import { renderDashboard } from './dashboard.js'
 import { renderOverview } from './overview.js'
+import { runWebDashboard } from './web-dashboard.js'
 import { formatDateRangeLabel, parseDateRangeFlags, parseDayFlag, parseDaysFlag, getDateRange, toPeriod, type Period } from './cli-date.js'
 import { runOptimize } from './optimize.js'
 import { renderCompare } from './compare.js'
@@ -504,6 +505,30 @@ program
     process.stdout.write(renderOverview(projects, { label, color: opts.color }))
   })
 
+program
+  .command('web')
+  .description('Open the local web dashboard in your browser')
+  .option('-p, --period <period>', 'Initial period: today, week, 30days, month, all', 'month')
+  .option('--from <date>', 'Start date (YYYY-MM-DD)')
+  .option('--to <date>', 'End date (YYYY-MM-DD)')
+  .option('--provider <provider>', 'Filter by provider (e.g. claude, codex, copilot)', 'all')
+  .option('--project <name>', 'Show only projects matching name (repeatable)', collect, [])
+  .option('--exclude <name>', 'Exclude projects matching name (repeatable)', collect, [])
+  .option('--port <number>', 'Port to listen on (falls back to a free port if taken)', parseInteger, 4747)
+  .option('--no-open', 'Do not open the browser automatically')
+  .action(async (opts) => {
+    assertProvider(opts.provider, 'web')
+    await runWebDashboard({
+      period: opts.period,
+      provider: opts.provider,
+      from: opts.from,
+      to: opts.to,
+      project: opts.project,
+      exclude: opts.exclude,
+      port: opts.port,
+      open: opts.open,
+    })
+  })
 
 program
   .command('status')

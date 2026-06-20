@@ -1,0 +1,134 @@
+@import url("https://fonts.googleapis.com/css2?family=Geist:wght@100..900&display=swap");
+@import "tailwindcss";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * Midnight theme for CodeBurn. Near-black surfaces, a single warm orange
+ * accent, and a warm orange -> gold 10-stop ramp for stacked charts.
+ */
+:root {
+  font-family: "Geist", "Geist Fallback", system-ui, sans-serif;
+  --radius: 0.5rem;
+
+  --background: #0a0a0b;
+  --outer-background: #000000;
+  --foreground: #e7e7ea;
+  --card: #0b0b0d;
+  --card-foreground: #ffffff;
+  --popover: #131316;
+  --popover-foreground: #ffffff;
+  --muted: #121215;
+  --muted-foreground: #cfcfd4;
+  --tertiary-foreground: #8a8a92;
+  --border: #1b1b1f;
+  --input: #2a2a2e;
+  --interactive-secondary: #141417;
+  --interactive-secondary-hover: #1d1d21;
+  --active-primary: #221a12;
+  --accent: #1c1c20;
+  --accent-foreground: #ffffff;
+  --subtle: #6b6b73;
+  --primary: #ff8c42;
+  --primary-foreground: #1a0f06;
+  --ring: #ff8c42;
+  --positive: #5bf58c;
+
+  --chart-1: #ff8c42;
+  --chart-2: #ffa94d;
+  --chart-3: #f97316;
+  --chart-4: #ffc35e;
+  --chart-5: #fb923c;
+  --chart-6: #fbbf24;
+  --chart-7: #f59e0b;
+  --chart-8: #fdba74;
+  --chart-9: #eab308;
+  --chart-10: #d97742;
+  --chart-grid-stroke: #19191c;
+
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-outer-background: var(--outer-background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-tertiary-foreground: var(--tertiary-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-interactive-secondary: var(--interactive-secondary);
+  --color-interactive-secondary-hover: var(--interactive-secondary-hover);
+  --color-active-primary: var(--active-primary);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-subtle: var(--subtle);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-ring: var(--ring);
+  --color-positive: var(--positive);
+
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-chart-6: var(--chart-6);
+  --color-chart-7: var(--chart-7);
+  --color-chart-8: var(--chart-8);
+  --color-chart-9: var(--chart-9);
+  --color-chart-10: var(--chart-10);
+  --color-chart-grid-stroke: var(--chart-grid-stroke);
+
+  --radius-sm: calc(var(--radius) - 2px);
+  --radius-md: var(--radius);
+  --radius-lg: calc(var(--radius) + 2px);
+
+  --text-xs: 12px;
+  --text-sm: 13px;
+  --text-md: 15px;
+  --text-lg: 17px;
+  --text-xl: 20px;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-outer-background text-foreground;
+    letter-spacing: -0.011em;
+    font-weight: 450;
+    margin: 0;
+  }
+  ::selection {
+    background: var(--primary);
+    color: var(--primary-foreground);
+  }
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in oklch, var(--foreground) 16%, transparent) transparent;
+  }
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+.skeleton-shimmer {
+  background-color: var(--muted);
+  background-image: linear-gradient(
+    90deg,
+    transparent 0%,
+    color-mix(in oklch, var(--foreground) 8%, transparent) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  background-repeat: no-repeat;
+  animation: shimmer 1.6s ease-in-out infinite;
+}
