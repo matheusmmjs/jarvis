@@ -287,6 +287,8 @@ export async function runWebDashboard(opts: {
     })
     server.listen(opts.port, '127.0.0.1', () => resolve((server.address() as AddressInfo).port))
   })
+  // Durable handler so a post-bind socket error never crashes the process.
+  server.on('error', () => {})
 
   const url = `http://127.0.0.1:${port}`
   if (!dashDir) {

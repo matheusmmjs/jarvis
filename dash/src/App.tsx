@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import {
@@ -402,6 +402,18 @@ export function App() {
         : [],
     [c0],
   )
+
+  // If the device you're viewing drops off (slept/unreachable), fall back to
+  // All devices instead of showing an empty panel with nothing selected.
+  useEffect(() => {
+    if (view !== 'all' && data && !devices.some((d) => d.name === view)) setView('all')
+  }, [view, devices, data])
+
+  // If the selected provider isn't present on the current view, reset to all
+  // (otherwise a healthy device shows empty under a filter it has no data for).
+  useEffect(() => {
+    if (provider !== 'all' && c0 && !providerOptions.includes(provider)) setProvider('all')
+  }, [provider, providerOptions, c0])
 
   const showCombined = multi && view === 'all'
   const viewTitle = showCombined ? 'All devices' : (primary ? primary.name + (primary.local ? ' · this Mac' : '') : 'Loading…')

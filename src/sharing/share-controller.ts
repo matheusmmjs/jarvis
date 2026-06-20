@@ -47,8 +47,8 @@ export class ShareController {
   }
 
   async start(always: boolean): Promise<void> {
-    this.always = always
     if (this.server) {
+      this.always = always
       this.refreshIdleWatch()
       return
     }
@@ -63,7 +63,10 @@ export class ShareController {
       },
       approve: (req) => this.enqueueApproval(req),
     })
+    // listen() can reject (e.g. EADDRINUSE); only commit state after it binds,
+    // so a failed start never leaves us reporting always/sharing incorrectly.
     await server.listen(this.port, '0.0.0.0')
+    this.always = always
     this.server = server
     this.ad = advertise({ name: identity.name, port: this.port, fingerprint: identity.fingerprint })
     this.lastActivity = Date.now()

@@ -37,6 +37,11 @@ export class ShareServer {
         void this.handle(req, res)
       },
     )
+    // Swallow server-level socket/TLS errors (e.g. a malformed handshake from a
+    // LAN peer) so they can never crash the host process. `listen()` attaches
+    // its own one-time handler for bind failures.
+    this.server.on('error', () => {})
+    this.server.on('tlsClientError', () => {})
   }
 
   // Open a one-time pairing window and return the PIN to show the user.

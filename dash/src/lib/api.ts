@@ -94,7 +94,24 @@ function normalizePayload(p?: Payload): Payload | undefined {
       retryTax: c.retryTax ?? { totalUSD: 0, retries: 0 },
       routingWaste: c.routingWaste ?? { totalSavingsUSD: 0 },
     },
-    history: { daily: p.history?.daily ?? [] },
+    history: {
+      daily: (p.history?.daily ?? []).map((d) => ({
+        date: d.date,
+        cost: d.cost ?? 0,
+        calls: d.calls ?? 0,
+        inputTokens: d.inputTokens ?? 0,
+        outputTokens: d.outputTokens ?? 0,
+        cacheReadTokens: d.cacheReadTokens ?? 0,
+        cacheWriteTokens: d.cacheWriteTokens ?? 0,
+        topModels: (d.topModels ?? []).map((m) => ({
+          name: m.name,
+          cost: m.cost ?? 0,
+          calls: m.calls ?? 0,
+          inputTokens: m.inputTokens ?? 0,
+          outputTokens: m.outputTokens ?? 0,
+        })),
+      })),
+    },
   }
 }
 
