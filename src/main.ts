@@ -31,6 +31,14 @@ const require = createRequire(import.meta.url)
 const { version } = require('../package.json')
 import { loadCurrency, getCurrency, isValidCurrencyCode } from './currency.js'
 
+// A downstream reader that closes the pipe early (`| head`, quitting `less`, or
+// a missing command) makes stdout writes fail with EPIPE. Exit cleanly rather
+// than crashing with an unhandled error event.
+process.stdout.on('error', (err: NodeJS.ErrnoException) => {
+  if (err.code === 'EPIPE') process.exit(0)
+  throw err
+})
+
 function collect(val: string, acc: string[]): string[] {
   acc.push(val)
   return acc
