@@ -1,9 +1,11 @@
 import type { MenubarPayload } from '../menubar-json.js'
 
-// Strip identifying detail before usage leaves the device. We share aggregate
-// numbers (cost, tokens, models, tools, activities, daily) but never project
-// names, paths, or per-session detail, so "what you are working on" stays on
-// the machine that produced it. Only the totals travel.
+// Strip identifying detail before usage leaves the device. We never share
+// project names, file paths, or per-session detail (the strongest signal of
+// "what you are working on"). We DO share aggregate numbers plus model, tool,
+// task, subagent, skill, and MCP-server usage, since the dashboard surfaces
+// those per device. If a user names a subagent/skill after a client, that name
+// would travel; revisit if that becomes a concern.
 export function sanitizeForSharing(payload: MenubarPayload): MenubarPayload {
   return {
     ...payload,

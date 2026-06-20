@@ -131,7 +131,8 @@ export function UsageChart({ daily, unit = 'cost' }: { daily: DailyEntry[]; unit
 export function DeviceUsageChart({ devices, unit = 'cost' }: { devices: DeviceUsage[]; unit?: Unit }) {
   const { rows, series, labels } = useMemo(() => {
     const named = devices.filter((d) => d.payload)
-    const dates = [...new Set(named.flatMap((d) => d.payload!.history.daily.map((e) => e.date)))].sort((a, b) => a.localeCompare(b))
+    const dailyOf = (d: DeviceUsage) => d.payload?.history?.daily ?? []
+    const dates = [...new Set(named.flatMap((d) => dailyOf(d).map((e) => e.date)))].sort((a, b) => a.localeCompare(b))
     const series: Series[] = named.map((d, i) => ({
       key: `d${i}`,
       label: d.name + (d.local ? ' (this Mac)' : ''),
@@ -140,7 +141,7 @@ export function DeviceUsageChart({ devices, unit = 'cost' }: { devices: DeviceUs
     const rowData = dates.map((date) => {
       const row: Record<string, number | string> = { period: date }
       named.forEach((d, i) => {
-        const e = d.payload!.history.daily.find((x) => x.date === date)
+        const e = dailyOf(d).find((x) => x.date === date)
         row[`d${i}`] = e ? (unit === 'tokens' ? e.inputTokens + e.outputTokens : e.cost) : 0
       })
       return row

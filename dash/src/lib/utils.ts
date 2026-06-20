@@ -21,13 +21,17 @@ export function fmtTokens(n: number | undefined | null): string {
 }
 
 export function fmtNum(n: number | undefined | null): string {
-  return (n ?? 0).toLocaleString()
+  const v = n == null || !isFinite(n) ? 0 : n
+  return v.toLocaleString()
 }
 
 export function compactUsd(n: number): string {
-  if (n >= 1e6) return '$' + (n / 1e6).toFixed(1) + 'M'
-  if (n >= 1e3) return '$' + (n / 1e3).toFixed(n >= 1e4 ? 0 : 1) + 'k'
-  return '$' + Math.round(n)
+  if (!isFinite(n)) return '$0'
+  const sign = n < 0 ? '-' : ''
+  const a = Math.abs(n)
+  if (a >= 1e6) return sign + '$' + (a / 1e6).toFixed(1) + 'M'
+  if (a >= 1e3) return sign + '$' + (a / 1e3).toFixed(a >= 1e4 ? 0 : 1) + 'k'
+  return sign + '$' + Math.round(a)
 }
 
 // Forest green -> gold -> terracotta ramp for stacked series (mirrors the

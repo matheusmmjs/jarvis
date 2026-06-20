@@ -353,7 +353,7 @@ export function App() {
 
   const showCombined = multi && view === 'all'
   const viewTitle = showCombined ? 'All devices' : (primary ? primary.name + (primary.local ? ' · this Mac' : '') : 'Loading…')
-  const label = local?.payload?.current.label ?? ''
+  const label = local?.payload?.current?.label ?? ''
 
   return (
     <div className="min-h-screen bg-outer-background p-2.5">

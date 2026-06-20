@@ -62,10 +62,47 @@ export type DeviceUsage = {
   error?: string
 }
 
+// A device may run a different CodeBurn version and send a payload missing
+// fields we treat as required. Fill safe defaults at the boundary so the UI
+// can iterate them without crashing (the alternative is a white screen for an
+// innocent local user because a peer sent an old shape).
+function normalizePayload(p?: Payload): Payload | undefined {
+  if (!p) return p
+  const c = (p.current ?? {}) as Partial<Current>
+  return {
+    generated: p.generated,
+    current: {
+      label: c.label ?? '',
+      cost: c.cost ?? 0,
+      calls: c.calls ?? 0,
+      sessions: c.sessions ?? 0,
+      oneShotRate: c.oneShotRate ?? null,
+      inputTokens: c.inputTokens ?? 0,
+      outputTokens: c.outputTokens ?? 0,
+      cacheHitPercent: c.cacheHitPercent ?? 0,
+      codexCredits: c.codexCredits ?? 0,
+      topActivities: c.topActivities ?? [],
+      topModels: c.topModels ?? [],
+      providers: c.providers ?? {},
+      topProjects: c.topProjects ?? [],
+      tools: c.tools ?? [],
+      subagents: c.subagents ?? [],
+      skills: c.skills ?? [],
+      mcpServers: c.mcpServers ?? [],
+      modelEfficiency: c.modelEfficiency ?? [],
+      localModelSavings: c.localModelSavings ?? { totalUSD: 0 },
+      retryTax: c.retryTax ?? { totalUSD: 0, retries: 0 },
+      routingWaste: c.routingWaste ?? { totalSavingsUSD: 0 },
+    },
+    history: { daily: p.history?.daily ?? [] },
+  }
+}
+
 export async function fetchDevices(period: Period, provider: string): Promise<{ devices: DeviceUsage[] }> {
   const res = await fetch(`/api/devices?period=${encodeURIComponent(period)}&provider=${encodeURIComponent(provider)}`)
   if (!res.ok) throw new Error(`Request failed (${res.status})`)
-  return res.json() as Promise<{ devices: DeviceUsage[] }>
+  const data = (await res.json()) as { devices: DeviceUsage[] }
+  return { devices: (data.devices ?? []).map((d) => ({ ...d, payload: normalizePayload(d.payload) })) }
 }
 
 export const PERIODS: Array<{ key: Period; label: string }> = [

@@ -93,6 +93,20 @@ export async function runWebDashboard(opts: {
     try {
       const url = new URL(req.url ?? '/', 'http://localhost')
 
+      // Loopback-only server. Reject any request not addressed to localhost
+      // (defeats DNS rebinding, which would otherwise let a website you visit
+      // read your local usage) and any cross-origin request (CSRF). The local
+      // payload is unsanitized, so this guard is what keeps it on your machine.
+      const reqHost = (req.headers.host ?? '').replace(/:\d+$/, '')
+      const loopback = reqHost === '127.0.0.1' || reqHost === 'localhost' || reqHost === '::1' || reqHost === '[::1]'
+      const origin = req.headers.origin
+      const originOk = !origin || /^https?:\/\/(127\.0\.0\.1|localhost|\[::1\])(:\d+)?$/.test(origin)
+      if (!loopback || !originOk) {
+        res.writeHead(403, { 'content-type': 'text/plain' })
+        res.end('Forbidden')
+        return
+      }
+
       if (url.pathname === '/api/usage') {
         const period = url.searchParams.get('period') ?? opts.period
         const provider = url.searchParams.get('provider') ?? opts.provider
@@ -166,6 +180,11 @@ export async function runWebDashboard(opts: {
       // Pair with a chosen discovered device. Blocks until the other device
       // approves (or declines / times out), then stores the link.
       if (url.pathname === '/api/devices/pair' && req.method === 'POST') {
+        if (!(req.headers['content-type'] ?? '').includes('application/json')) {
+          res.writeHead(415, { 'content-type': 'application/json' })
+          res.end(JSON.stringify({ ok: false, error: 'content-type must be application/json' }))
+          return
+        }
         const body = JSON.parse((await readBody(req)) || '{}') as { name: string; host: string; port: number; fingerprint: string }
         try {
           const device = await linkRemote(body)

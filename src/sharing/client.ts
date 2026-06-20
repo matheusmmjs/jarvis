@@ -24,6 +24,7 @@ function call(
   path: string,
   headers: Record<string, string> = {},
   body?: string,
+  timeoutMs = 8000,
 ): Promise<Response> {
   return new Promise((resolve, reject) => {
     const req = request(
@@ -54,6 +55,7 @@ function call(
       },
     )
     req.on('error', reject)
+    req.setTimeout(timeoutMs, () => req.destroy(new Error('peer timed out')))
     if (body) req.write(body)
     req.end()
   })
@@ -70,7 +72,9 @@ export function pair(ep: PeerEndpoint, pin: string, name: string): Promise<Respo
 // Approve-style pairing: no PIN. The peer prompts its user to approve; this
 // request stays open until they accept or decline.
 export function pairRequest(ep: PeerEndpoint, name: string): Promise<Response> {
-  return call(ep, 'POST', '/api/peer/pair-request', {}, JSON.stringify({ name }))
+  // Stays open while the peer's user decides; give it longer than the server's
+  // 60s approval prompt.
+  return call(ep, 'POST', '/api/peer/pair-request', {}, JSON.stringify({ name }), 65_000)
 }
 
 export function fetchUsage(ep: PeerEndpoint, token: string, query: UsageQuery = {}): Promise<Response> {

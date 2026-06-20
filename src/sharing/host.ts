@@ -89,17 +89,21 @@ export async function pullDevices(
   const identity = await loadOrCreateIdentity(dir)
   const remotes = await loadRemotes(dir)
 
-  const results: DeviceUsage[] = [{ name: localName, local: true, payload: await localGetUsage(query) }]
-  for (const r of remotes) {
-    try {
-      const res = await fetchUsage({ identity, host: r.host, port: r.port, expectedFingerprint: r.fingerprint }, r.token, query)
-      if (res.status === 200) results.push({ name: r.name, local: false, payload: res.json as DevicePayload })
-      else results.push({ name: r.name, local: false, error: res.status === 401 ? 'not authorized (re-pair?)' : `HTTP ${res.status}` })
-    } catch (e) {
-      results.push({ name: r.name, local: false, error: e instanceof Error ? e.message : String(e) })
-    }
-  }
-  return results
+  const local: DeviceUsage = { name: localName, local: true, payload: await localGetUsage(query) }
+  // Pull every remote concurrently and isolate failures, so one slow or
+  // powered-off device degrades to an error row instead of blocking the rest.
+  const remoteResults = await Promise.all(
+    remotes.map(async (r): Promise<DeviceUsage> => {
+      try {
+        const res = await fetchUsage({ identity, host: r.host, port: r.port, expectedFingerprint: r.fingerprint }, r.token, query)
+        if (res.status === 200) return { name: r.name, local: false, payload: res.json as DevicePayload }
+        return { name: r.name, local: false, error: res.status === 401 ? 'not authorized (re-pair?)' : `HTTP ${res.status}` }
+      } catch (e) {
+        return { name: r.name, local: false, error: e instanceof Error ? e.message : String(e) }
+      }
+    }),
+  )
+  return [local, ...remoteResults]
 }
 
 export function renderDevices(results: DeviceUsage[]): string {

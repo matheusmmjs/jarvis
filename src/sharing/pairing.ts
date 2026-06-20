@@ -44,23 +44,32 @@ export class PairingWindow {
   readonly pin: string
   readonly openedAt: number
   private used = false
+  private attempts = 0
 
-  constructor(ttlMs = 60_000, now: number = Date.now(), pin: string = generatePin()) {
+  constructor(ttlMs = 60_000, now: number = Date.now(), pin: string = generatePin(), maxAttempts = 5) {
     this.ttlMs = ttlMs
     this.pin = pin
     this.openedAt = now
+    this.maxAttempts = maxAttempts
   }
 
   private readonly ttlMs: number
+  private readonly maxAttempts: number
 
   isOpen(now: number = Date.now()): boolean {
     return !this.used && now - this.openedAt <= this.ttlMs
   }
 
   // Verify a submitted PIN. A correct match consumes the window (one-time use).
+  // Wrong guesses are counted and the window closes after maxAttempts, so a
+  // 6-digit PIN cannot be brute-forced by a LAN peer within the TTL.
   verify(pin: string, now: number = Date.now()): boolean {
     if (!this.isOpen(now)) return false
-    if (!constantTimeEqual(pin, this.pin)) return false
+    if (!constantTimeEqual(pin, this.pin)) {
+      this.attempts += 1
+      if (this.attempts >= this.maxAttempts) this.used = true
+      return false
+    }
     this.used = true
     return true
   }

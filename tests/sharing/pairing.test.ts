@@ -66,6 +66,14 @@ describe('PairingWindow', () => {
     expect(w.verify('123456', 1100)).toBe(true)
     expect(w.verify('123456', 1200)).toBe(false)
   })
+  it('closes after too many wrong guesses (no brute force within the window)', () => {
+    const w = new PairingWindow(10_000, 1000, '123456', 5)
+    for (let i = 0; i < 5; i++) expect(w.verify('000000', 1000 + i)).toBe(false)
+    // window is now locked even though the TTL has not expired
+    expect(w.isOpen(1100)).toBe(false)
+    // and the correct PIN no longer works
+    expect(w.verify('123456', 1100)).toBe(false)
+  })
 })
 
 describe('PeerStore', () => {
