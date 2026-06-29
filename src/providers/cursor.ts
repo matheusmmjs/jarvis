@@ -470,13 +470,44 @@ function scanBubblesPaged(
   return { rows: collected, truncated }
 }
 
+// Cursor leaves the per-bubble tokenCount at {0,0} on current builds; the only
+// real input figure on disk is the conversation's context size, which Cursor
+// records in composerData.promptTokenBreakdown (the in-app context meter).
+// Keyed by composerId so parseBubbles can credit it to the right conversation.
+const COMPOSER_TOKENS_QUERY = `
+  SELECT
+    substr(key, 14) as composer_id,
+    json_extract(value, '$.promptTokenBreakdown.totalUsedTokens') as used,
+    json_extract(value, '$.contextTokensUsed') as ctx
+  FROM cursorDiskKV
+  WHERE key LIKE 'composerData:%'
+`
+
+function loadComposerInputTokens(db: SqliteDatabase): Map<string, number> {
+  const map = new Map<string, number>()
+  try {
+    const rows = db.query<{ composer_id: string; used: number | null; ctx: number | null }>(COMPOSER_TOKENS_QUERY)
+    for (const r of rows) {
+      const tokens = r.used ?? r.ctx ?? 0
+      if (r.composer_id && tokens > 0) map.set(r.composer_id, tokens)
+    }
+  } catch {
+    /* best-effort: callers fall back to the per-bubble text estimate */
+  }
+  return map
+}
+
 function parseBubbles(
   db: SqliteDatabase,
   seenKeys: Set<string>,
   timeFloor: string,
+  composerInput: Map<string, number>,
 ): { calls: ParsedProviderCall[] } {
   const results: ParsedProviderCall[] = []
   let skipped = 0
+  // Each conversation's real context is credited once (on its first turn) so a
+  // multi-turn chat does not multiply the snapshot across every bubble.
+  const creditedComposers = new Set<string>()
 
   // The bubble timestamp lives inside the JSON value (no index), so the date
   // filter forces a full JSON decode per row. Multi-GB Cursor DBs (500k+
@@ -520,36 +551,44 @@ function parseBubbles(
 
   for (const row of rows) {
     try {
-      let inputTokens = row.input_tokens ?? 0
-      let outputTokens = row.output_tokens ?? 0
-
-      // Cursor v3 stores zero token counts — estimate from text length
-      if (inputTokens === 0 && outputTokens === 0) {
-        const textLen = row.text_length ?? 0
-        if (textLen === 0) continue
-        if (row.bubble_type === 1) {
-          inputTokens = Math.ceil(textLen / CHARS_PER_TOKEN)
-        } else {
-          outputTokens = Math.ceil(textLen / CHARS_PER_TOKEN)
-        }
-      }
-
-      const createdAt = row.created_at ?? ''
-      if (!createdAt) continue
-      // The JSON `conversationId` field on bubbles is empty in current
-      // Cursor builds. The real composerId lives in the row key
-      // `bubbleId:<composerId>:<bubbleUuid>`. Extract from the key so the
-      // workspace map join works. parseComposerIdFromKey returns null for
-      // non-UUID composer segments (Cursor stores tool-call output under
-      // `bubbleId:task-call_xxx\nfc_yyy:<bubbleUuid>` and similar shapes —
-      // those bubbles are NOT standalone sessions; their tokens are
-      // already accounted for inside the parent composer's stream).
+      // The JSON `conversationId` field on bubbles is empty in current Cursor
+      // builds. The real composerId lives in the row key
+      // `bubbleId:<composerId>:<bubbleUuid>`. parseComposerIdFromKey returns
+      // null for non-UUID composer segments (Cursor stores tool-call output
+      // under `bubbleId:task-call_xxx\nfc_yyy:<bubbleUuid>` and similar shapes),
+      // which are NOT standalone sessions.
       const parsedComposerId = parseComposerIdFromKey(row.bubble_key)
       if (!parsedComposerId) {
         skipped++
         continue
       }
       const conversationId = parsedComposerId
+
+      const createdAt = row.created_at ?? ''
+      if (!createdAt) continue
+
+      let inputTokens = row.input_tokens ?? 0
+      let outputTokens = row.output_tokens ?? 0
+
+      // Current Cursor leaves tokenCount at {0,0}. Use the conversation's real
+      // context size (promptTokenBreakdown) for input, credited once per
+      // conversation, and the reply text for output. Fall back to the
+      // visible-text estimate only when no breakdown was recorded (older builds).
+      if (inputTokens === 0 && outputTokens === 0) {
+        const textLen = row.text_length ?? 0
+        if (row.bubble_type === 1) {
+          const real = composerInput.get(conversationId)
+          if (real != null) {
+            inputTokens = creditedComposers.has(conversationId) ? 0 : real
+            creditedComposers.add(conversationId)
+          } else {
+            inputTokens = Math.ceil(textLen / CHARS_PER_TOKEN)
+          }
+        } else {
+          outputTokens = Math.ceil(textLen / CHARS_PER_TOKEN)
+        }
+        if (inputTokens === 0 && outputTokens === 0) continue
+      }
       // Use the SQLite row key (bubbleId:<unique>) as the dedup key.
       // Cursor mutates token counts on the row in place when streaming
       // completes — including tokens in the dedup key (the previous
@@ -801,9 +840,13 @@ function createParser(
           // seenKeys is not mutated by calls that the workspace filter is
           // about to drop. Cross-source dedup happens at yield time.
           const localSeen = new Set<string>()
-          const { calls: bubbleCalls } = parseBubbles(db, localSeen, timeFloor)
-          const { calls: agentKvCalls } = parseAgentKv(db, localSeen, dbPath)
-          allCalls = [...bubbleCalls, ...agentKvCalls]
+          // promptTokenBreakdown carries Cursor's real per-conversation input
+          // count, so it supersedes the old agentKv content-char estimate,
+          // which double-counted against the bubble stream. parseAgentKv is
+          // kept for the tools/bash breakdown in a follow-up.
+          const composerInput = loadComposerInputTokens(db)
+          const { calls: bubbleCalls } = parseBubbles(db, localSeen, timeFloor, composerInput)
+          allCalls = bubbleCalls
           await writeCachedResults(dbPath, allCalls, timeFloor)
         } finally {
           db.close()
