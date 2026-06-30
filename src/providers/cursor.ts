@@ -492,7 +492,7 @@ function loadComposerInputTokens(db: SqliteDatabase): Map<string, number> {
   return map
 }
 
-type AgentTools = { tools: string[]; bash: string[] }
+type AgentTools = { tools: string[]; bash: string[]; userChars: number }
 
 // Cursor logs the agent's tool calls (Read, Grep, Shell, ...) in agentKv blobs
 // keyed by requestId. Bubbles carry the same requestId plus the composerId, so
@@ -529,9 +529,22 @@ function loadAgentToolsByComposer(db: SqliteDatabase): Map<string, AgentTools> {
   let currentRequestId: string | null = null
   for (const row of rows) {
     if (row.request_id) currentRequestId = row.request_id
-    if (row.role !== 'assistant' || !row.content || !currentRequestId) continue
+    if (!row.content || !currentRequestId) continue
     const composer = requestToComposer.get(currentRequestId)
     if (!composer) continue
+
+    // A user turn stores its prompt (plus injected context) as a plain string.
+    // Track its length so a turn whose bubble text is empty — non-Composer
+    // sessions such as GPT keep it in the agent stream — can still be
+    // estimated instead of dropped.
+    if (row.role === 'user') {
+      const bucket = byComposer.get(composer) ?? { tools: [], bash: [], userChars: 0 }
+      bucket.userChars += blobToText(row.content).length
+      byComposer.set(composer, bucket)
+      continue
+    }
+    if (row.role !== 'assistant') continue
+
     let content: unknown
     try {
       content = JSON.parse(blobToText(row.content))
@@ -539,7 +552,7 @@ function loadAgentToolsByComposer(db: SqliteDatabase): Map<string, AgentTools> {
       continue
     }
     if (!Array.isArray(content)) continue
-    const bucket = byComposer.get(composer) ?? { tools: [], bash: [] }
+    const bucket = byComposer.get(composer) ?? { tools: [], bash: [], userChars: 0 }
     for (const block of content as Array<{ type?: string; toolName?: string; args?: { command?: string } }>) {
       if (!block || block.type !== 'tool-call' || !block.toolName) continue
       bucket.tools.push(block.toolName)
@@ -666,8 +679,18 @@ function parseBubbles(
               creditedComposers.add(conversationId)
               creditedHere = true
             }
-          } else {
+          } else if (textLen > 0) {
             inputTokens = Math.ceil(textLen / CHARS_PER_TOKEN)
+          } else if (!creditedComposers.has(conversationId)) {
+            // Non-Composer sessions (e.g. GPT) record no context meter and keep
+            // the prompt in the agent stream, leaving the bubble text empty.
+            // Estimate from the stream text, credited once per conversation.
+            const agentChars = agentTools.get(conversationId)?.userChars ?? 0
+            if (agentChars > 0) {
+              inputTokens = Math.ceil(agentChars / CHARS_PER_TOKEN)
+              creditedComposers.add(conversationId)
+              creditedHere = true
+            }
           }
         } else {
           outputTokens = Math.ceil(textLen / CHARS_PER_TOKEN)

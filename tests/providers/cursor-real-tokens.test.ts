@@ -259,4 +259,37 @@ describe.skipIf(skipReason !== null)('cursor real context tokens (#575)', () => 
     // Should be the conversation's actual model
     expect(creditedCall!.model).toBe('claude-4.5-opus-high-thinking')
   })
+
+  it('estimates input from the agent stream when a non-Composer turn has empty bubble text', async () => {
+    const composerId = '99990000-1111-2222-3333-444455556666'
+    const requestId = 'req-gpt-1'
+    const prompt = '<user_info>OS: darwin</user_info> refactor the auth module and add tests'
+    const dbPath = buildDb((db) => {
+      // No composerData meter (non-Composer session, e.g. GPT), and the user
+      // turn's text lives in the agent stream, so the bubble text is empty.
+      insertBubble(db, { composerId, bubbleUuid: 'b1', type: 1, text: '', requestId })
+      insertBubble(db, { composerId, bubbleUuid: 'b2', type: 2, text: 'done', model: 'gpt-5' })
+      insertAgentKv(db, { blobId: 'akv-1', role: 'user', content: prompt, requestId })
+    })
+
+    const provider = createCursorProvider(dbPath)
+    const calls = await collectCalls(provider, dbPath)
+
+    const credited = calls.find(c => c.inputTokens > 0)
+    expect(credited).toBeDefined()
+    expect(credited!.inputTokens).toBe(Math.ceil(prompt.length / 4))
+  })
+
+  it('does not fabricate input when an empty-text turn has no agent stream', async () => {
+    const composerId = '88880000-1111-2222-3333-444455556666'
+    const dbPath = buildDb((db) => {
+      insertBubble(db, { composerId, bubbleUuid: 'b1', type: 1, text: '' })
+      insertBubble(db, { composerId, bubbleUuid: 'b2', type: 2, text: 'done', model: 'gpt-5' })
+    })
+
+    const provider = createCursorProvider(dbPath)
+    const calls = await collectCalls(provider, dbPath)
+
+    expect(calls.find(c => c.inputTokens > 0)).toBeUndefined()
+  })
 })
