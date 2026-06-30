@@ -322,7 +322,7 @@ const AGENTKV_QUERY = `
 
 const USER_MESSAGES_QUERY = `
   SELECT
-    json_extract(value, '$.conversationId') as conversation_id,
+    key as bubble_key,
     json_extract(value, '$.createdAt') as created_at,
     CAST(substr(json_extract(value, '$.text'), 1, 500) AS BLOB) as text
   FROM cursorDiskKV
@@ -378,7 +378,7 @@ function validateSchema(db: SqliteDatabase): boolean {
   }
 }
 
-type UserMsgRow = { conversation_id: string; created_at: string; text: Uint8Array | string }
+type UserMsgRow = { bubble_key: string; created_at: string; text: Uint8Array | string }
 
 /// Per-conversation user-message buffer. We pop messages in arrival order via
 /// the `pos` cursor — a previous implementation called Array.shift() which is
@@ -394,13 +394,16 @@ function buildUserMessageMap(db: SqliteDatabase, timeFloor: string): Map<string,
   try {
     const rows = db.query<UserMsgRow>(USER_MESSAGES_QUERY, [timeFloor])
     for (const row of rows) {
-      if (!row.conversation_id || !row.text) continue
+      // Extract the composerId from the bubble key, matching parseBubbles().
+      // The JSON `conversationId` field is empty in current Cursor builds.
+      const composerId = parseComposerIdFromKey(row.bubble_key)
+      if (!composerId || !row.text) continue
       const text = blobToText(row.text)
-      const existing = map.get(row.conversation_id)
+      const existing = map.get(composerId)
       if (existing) {
         existing.messages.push(text)
       } else {
-        map.set(row.conversation_id, { messages: [text], pos: 0 })
+        map.set(composerId, { messages: [text], pos: 0 })
       }
     }
   } catch {}
@@ -459,9 +462,12 @@ function scanBubblesPaged(
   return { rows: collected, truncated }
 }
 
-// Cursor leaves the per-bubble tokenCount at {0,0} on current builds; the only
-// real input figure on disk is the conversation's context size, which Cursor
-// records in composerData.promptTokenBreakdown (the in-app context meter).
+// Cursor leaves the per-bubble tokenCount at {0,0} on current builds. The only
+// real input figure on disk is the latest context-window snapshot, which Cursor
+// records in composerData.promptTokenBreakdown.totalUsedTokens or
+// contextTokensUsed (the in-app context meter). This is not cumulative per-turn,
+// so local SQLite undercounts admin-console usage; parity requires the opt-in
+// Cursor Admin API: POST api.cursor.com/teams/filtered-usage-events.
 // Keyed by composerId so parseBubbles can credit it to the right conversation.
 const COMPOSER_TOKENS_QUERY = `
   SELECT
@@ -560,6 +566,22 @@ function parseBubbles(
   // multi-turn chat does not multiply the snapshot across every bubble.
   const creditedComposers = new Set<string>()
 
+  // Build a composerId -> model map from assistant bubbles. User bubbles
+  // (type=1) carry no modelInfo, so when we credit real input tokens onto a
+  // user bubble we need the conversation's actual model for pricing.
+  const composerModel = new Map<string, string>()
+  try {
+    const modelRows = db.query<{ bubble_key: string; model: string | null }>(`
+      SELECT key as bubble_key, json_extract(value, '$.modelInfo.modelName') as model
+      FROM cursorDiskKV
+      WHERE key LIKE 'bubbleId:%' AND json_extract(value, '$.modelInfo.modelName') IS NOT NULL
+    `)
+    for (const r of modelRows) {
+      const cid = parseComposerIdFromKey(r.bubble_key)
+      if (cid && r.model && !composerModel.has(cid)) composerModel.set(cid, r.model)
+    }
+  } catch { /* best-effort */ }
+
   // The bubble timestamp lives inside the JSON value (no index), so the date
   // filter forces a full JSON decode per row. Multi-GB Cursor DBs (500k+
   // bubbles) were producing 30s+ parse stalls, so the scan is bounded. The old
@@ -624,10 +646,14 @@ function parseBubbles(
       // real input (its first turn), so they are counted exactly once.
       let creditedHere = false
 
-      // Current Cursor leaves tokenCount at {0,0}. Use the conversation's real
-      // context size (promptTokenBreakdown) for input, credited once per
-      // conversation, and the reply text for output. Fall back to the
-      // visible-text estimate only when no breakdown was recorded (older builds).
+      // Current Cursor leaves tokenCount at {0,0}. Use the latest local
+      // context-window snapshot for input, credited once per conversation; it is
+      // not cumulative per-turn, so it undercounts Cursor Admin console totals.
+      // Output is a reply-text estimate, and cache tokens are server-side only
+      // (0 on disk). Admin-console parity requires POST
+      // api.cursor.com/teams/filtered-usage-events.
+      // Fall back to the visible-text estimate only when no breakdown was
+      // recorded (older builds).
       if (inputTokens === 0 && outputTokens === 0) {
         const textLen = row.text_length ?? 0
         if (row.bubble_type === 1) {
@@ -658,8 +684,12 @@ function parseBubbles(
       if (seenKeys.has(dedupKey)) continue
       seenKeys.add(dedupKey)
 
-      const pricingModel = resolveModel(row.model)
-      const displayModel = modelForDisplay(row.model)
+      // User bubbles (type=1) carry no modelInfo, so when real input tokens
+      // are credited onto them, fall back to the conversation's model (found
+      // on the assistant bubble) for pricing and display.
+      const effectiveModel = row.model ?? composerModel.get(conversationId) ?? null
+      const pricingModel = resolveModel(effectiveModel)
+      const displayModel = modelForDisplay(effectiveModel)
 
       const costUSD = calculateCost(pricingModel, inputTokens, outputTokens, 0, 0, 0)
 
@@ -774,10 +804,11 @@ function createParser(
           // seenKeys is not mutated by calls that the workspace filter is
           // about to drop. Cross-source dedup happens at yield time.
           const localSeen = new Set<string>()
-          // promptTokenBreakdown carries Cursor's real per-conversation input
-          // count, so it supersedes the old agentKv content-char estimate,
-          // which double-counted against the bubble stream. parseAgentKv is
-          // kept for the tools/bash breakdown in a follow-up.
+          // Real per-conversation input tokens from
+          // composerData.promptTokenBreakdown supersedes the old agentKv
+          // content-char estimate, which double-counted against the bubble
+          // stream. agentKv is now used only for the tools/bash breakdown
+          // via loadAgentToolsByComposer().
           const composerInput = loadComposerInputTokens(db)
           const agentTools = loadAgentToolsByComposer(db)
           const { calls: bubbleCalls } = parseBubbles(db, localSeen, timeFloor, composerInput, agentTools)
