@@ -429,10 +429,7 @@ export function App() {
       <div className="flex h-[calc(100vh-20px)] flex-col gap-2.5">
         <header className="flex h-12 shrink-0 items-center gap-4 rounded-md border border-border bg-card px-5 shadow-[0_2px_8px_rgba(0,0,0,0.03)]">
           <div className="flex items-center gap-2">
-            <img src="/codeburn-logo.png" alt="CodeBurn" className="h-6 w-6" />
-            <span className="text-lg font-semibold tracking-[-0.02em] text-foreground">
-              Code<span className="text-[#e8553a]">Burn</span>
-            </span>
+            <span className="cb-sheen text-lg font-semibold tracking-[-0.02em]">CodeBurn</span>
             <span className="ml-1 text-[11px] font-light uppercase tracking-[0.14em] text-tertiary-foreground">usage</span>
           </div>
 

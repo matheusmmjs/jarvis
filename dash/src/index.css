@@ -126,6 +126,20 @@
   0% { background-position: 200% 0; }
   100% { background-position: -200% 0; }
 }
+
+/* CodeBurn wordmark: orange metallic sheen (replaces the flame logo) */
+@keyframes cb-sheen {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+.cb-sheen {
+  background: linear-gradient(100deg, #c2432a 0%, #e8553a 32%, #ffcf9e 50%, #e8553a 68%, #c2432a 100%);
+  background-size: 220% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: cb-sheen 4s linear infinite;
+}
 .skeleton-shimmer {
   background-color: var(--muted);
   background-image: linear-gradient(
