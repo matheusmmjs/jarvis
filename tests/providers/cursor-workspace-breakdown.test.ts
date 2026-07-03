@@ -71,9 +71,14 @@ function createGlobalDb(composerIds: string[]): string {
   return dbPath
 }
 
+type WorkspaceComposerRow = {
+  key: 'composer.composerData' | 'composer.composerHeaders'
+  composerIds: string[]
+}
+
 /// Creates one workspaceStorage/<hash>/ subdir with workspace.json (folder URI)
-/// and state.vscdb (composer.composerData listing the supplied composerIds).
-function createWorkspaceDir(hash: string, folderUri: string, composerIds: string[]): void {
+/// and state.vscdb composer rows listing the supplied composerIds.
+function createWorkspaceDirWithRows(hash: string, folderUri: string, rows: WorkspaceComposerRow[]): void {
   const dir = join(userDir, 'workspaceStorage', hash)
   mkdirSync(dir, { recursive: true })
 
@@ -89,18 +94,23 @@ function createWorkspaceDir(hash: string, folderUri: string, composerIds: string
   const { DatabaseSync: Database } = requireForTest('node:sqlite')
   const db = new Database(wsDbPath)
   db.exec(`CREATE TABLE ItemTable (key TEXT UNIQUE, value BLOB)`)
-  const composerData = {
-    allComposers: composerIds.map(id => ({
-      composerId: id,
-      name: 'session-' + id.slice(0, 6),
-      unifiedMode: 'agent',
-    })),
+  const insert = db.prepare(`INSERT INTO ItemTable (key, value) VALUES (?, ?)`)
+  for (const row of rows) {
+    const composerData = {
+      allComposers: row.composerIds.map(id => ({
+        composerId: id,
+        name: 'session-' + id.slice(0, 6),
+        unifiedMode: 'agent',
+      })),
+    }
+    insert.run(row.key, JSON.stringify(composerData))
   }
-  db.prepare(`INSERT INTO ItemTable (key, value) VALUES (?, ?)`).run(
-    'composer.composerData',
-    JSON.stringify(composerData),
-  )
   db.close()
+}
+
+/// Legacy helper: most fixtures only need the original composer.composerData key.
+function createWorkspaceDir(hash: string, folderUri: string, composerIds: string[]): void {
+  createWorkspaceDirWithRows(hash, folderUri, [{ key: 'composer.composerData', composerIds }])
 }
 
 async function collect(parser: { parse(): AsyncGenerator<ParsedProviderCall> }): Promise<ParsedProviderCall[]> {
@@ -156,6 +166,33 @@ describe('cursor provider — per-project breakdown (#196)', () => {
     expect(workComposerIds).toEqual(new Set(['composer-work-1', 'composer-work-2']))
     const personalComposerIds = new Set(personalCalls.map(c => c.sessionId))
     expect(personalComposerIds).toEqual(new Set(['composer-personal-1']))
+  })
+
+  it('merges legacy composerData and composerHeaders rows for the same workspace', async () => {
+    if (!isSqliteAvailable()) return
+
+    const dbPath = createGlobalDb([
+      'composer-legacy',
+      'composer-headers',
+      'composer-orphan',
+    ])
+    createWorkspaceDirWithRows('hash-mixed', 'file:///Users/me/mixed-app', [
+      { key: 'composer.composerData', composerIds: ['composer-legacy'] },
+      { key: 'composer.composerHeaders', composerIds: ['composer-headers'] },
+    ])
+
+    const provider = createCursorProvider(dbPath)
+    const sources = await provider.discoverSessions()
+    const mixedSource = sources.find(s => s.project === '-Users-me-mixed-app')!
+    const orphanSource = sources.find(s => s.project === 'cursor')!
+
+    const mixedCalls = await collect(provider.createSessionParser(mixedSource, new Set()))
+    const mixedIds = new Set(mixedCalls.map(c => c.sessionId))
+    expect(mixedIds).toEqual(new Set(['composer-legacy', 'composer-headers']))
+
+    const orphanCalls = await collect(provider.createSessionParser(orphanSource, new Set()))
+    const orphanIds = new Set(orphanCalls.map(c => c.sessionId))
+    expect(orphanIds).toEqual(new Set(['composer-orphan']))
   })
 
   it('orphan source captures composers not registered in any workspace', async () => {
