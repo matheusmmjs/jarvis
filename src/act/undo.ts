@@ -32,6 +32,7 @@ async function driftedFiles(record: ActionRecord): Promise<string[]> {
     if (change.op === 'move' && await pathExists(change.path)) {
       drifted.push(`${change.path} (occupied, undo would overwrite it)`)
     }
+    if (change.afterHash === '') continue // no content hash (directories)
     const p = currentPath(change)
     try {
       if ((await sha256File(p)) !== change.afterHash) drifted.push(p)

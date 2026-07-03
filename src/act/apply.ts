@@ -1,4 +1,4 @@
-import { mkdir, rename, rm, writeFile } from 'fs/promises'
+import { lstat, mkdir, rename, rm, writeFile } from 'fs/promises'
 import { dirname, join } from 'path'
 import { randomUUID } from 'crypto'
 import type { ActionPlan, ActionRecord, FileChange } from './types.js'
@@ -45,7 +45,17 @@ export async function runAction(plan: ActionPlan, actionsDir: string = defaultAc
         const pc = plan.changes[i]!
         if (pc.op === 'move') {
           await mkdir(dirname(pc.movedTo), { recursive: true })
-          await rename(pc.path, pc.movedTo)
+          try {
+            await rename(pc.path, pc.movedTo)
+          } catch (err) {
+            // rename cannot replace a directory destination. It is already
+            // snapshotted (destBackup), so clear it and retry. Other codes
+            // (e.g. a missing source) rethrow before any destination damage.
+            const code = (err as NodeJS.ErrnoException).code
+            if (code !== 'ENOTEMPTY' && code !== 'EEXIST' && code !== 'EISDIR' && code !== 'ENOTDIR') throw err
+            await rm(pc.movedTo, { recursive: true, force: true })
+            await rename(pc.path, pc.movedTo)
+          }
         } else {
           await mkdir(dirname(pc.path), { recursive: true })
           await writeFile(pc.path, pc.content)
@@ -53,8 +63,11 @@ export async function runAction(plan: ActionPlan, actionsDir: string = defaultAc
         done.push(i)
       }
       // Hash after ALL mutations so overlapping changes carry the final state.
+      // Directories get '' (no content hash); drift detection skips them.
       for (const change of changes) {
-        change.afterHash = (await sha256File(change.op === 'move' ? change.movedTo! : change.path)) ?? ''
+        const p = change.op === 'move' ? change.movedTo! : change.path
+        const st = await lstat(p).catch(() => null)
+        change.afterHash = st && !st.isDirectory() ? (await sha256File(p)) ?? '' : ''
       }
       const record: ActionRecord = {
         id,

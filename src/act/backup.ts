@@ -1,4 +1,4 @@
-import { copyFile, lstat, mkdir, readFile, rename, rm } from 'fs/promises'
+import { copyFile, cp, lstat, mkdir, readFile, rename, rm } from 'fs/promises'
 import { createHash } from 'crypto'
 import { dirname, join } from 'path'
 import type { FileChange } from './types.js'
@@ -11,11 +11,13 @@ export function relBackupPath(id: string, index: number): string {
   return `backups/${id}/${index}.bak`
 }
 
-// Copy src to dest if src exists; return whether it existed so the caller can
-// record backup: null for a create.
+// Snapshot src (file or directory tree) to dest if it exists; return whether
+// it existed so the caller can record backup: null for a create.
 export async function snapshotFile(src: string, dest: string): Promise<boolean> {
   try {
-    await copyFile(src, dest)
+    const st = await lstat(src)
+    if (st.isDirectory()) await cp(src, dest, { recursive: true })
+    else await copyFile(src, dest)
     return true
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code === 'ENOENT') return false
@@ -50,8 +52,14 @@ export async function pathExists(path: string): Promise<boolean> {
 // overwrote an existing file and an edit of a missing file restore correctly.
 export async function revertChange(actionsDir: string, change: FileChange): Promise<void> {
   const restore = async (backup: string, to: string): Promise<void> => {
+    const src = join(actionsDir, backup)
     await mkdir(dirname(to), { recursive: true })
-    await copyFile(join(actionsDir, backup), to)
+    if ((await lstat(src)).isDirectory()) {
+      await rm(to, { recursive: true, force: true })
+      await cp(src, to, { recursive: true })
+    } else {
+      await copyFile(src, to)
+    }
   }
   if (change.op === 'move') {
     if (await pathExists(change.movedTo!)) {

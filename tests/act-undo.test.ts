@@ -218,6 +218,80 @@ describe('undoAction', () => {
 
     await expect(undoAction({ id: 'aaaaaaaa' }, { actionsDir })).rejects.toThrow(/matches 2 actions/)
   })
+
+  it('archives a directory and undo restores the tree with nested content byte-identical', async () => {
+    const { actionsDir, files } = await makeRoot()
+    const dir = join(files, 'skill')
+    const dest = join(files, '.archived', 'skill')
+    const nestedBytes = Buffer.from([1, 2, 3, 250, 0])
+    await mkdir(join(dir, 'nested'), { recursive: true })
+    await writeFile(join(dir, 'SKILL.md'), 'skill body')
+    await writeFile(join(dir, 'nested', 'data.bin'), nestedBytes)
+
+    const rec = await runAction({
+      kind: 'archive-skill',
+      description: 'archive dir',
+      changes: [{ op: 'move', path: dir, movedTo: dest }],
+    }, actionsDir)
+    expect(rec.changes[0]!.afterHash).toBe('')
+    expect(rec.changes[0]!.backup).not.toBeNull()
+    expect(existsSync(dir)).toBe(false)
+    expect(await readFile(join(dest, 'SKILL.md'), 'utf-8')).toBe('skill body')
+
+    await undoAction({ id: rec.id }, { actionsDir })
+    expect(existsSync(dest)).toBe(false)
+    expect(await readFile(join(dir, 'SKILL.md'), 'utf-8')).toBe('skill body')
+    expect(Buffer.compare(await readFile(join(dir, 'nested', 'data.bin')), nestedBytes)).toBe(0)
+  })
+
+  it('moves a directory onto an existing destination directory and undo restores both trees', async () => {
+    const { actionsDir, files } = await makeRoot()
+    const src = join(files, 'agent')
+    const dest = join(files, 'agent-archived')
+    await mkdir(src, { recursive: true })
+    await mkdir(dest, { recursive: true })
+    await writeFile(join(src, 'agent.md'), 'src tree')
+    await writeFile(join(dest, 'old.md'), 'dest tree')
+
+    const rec = await runAction({
+      kind: 'archive-agent',
+      description: 'dir onto dir',
+      changes: [{ op: 'move', path: src, movedTo: dest }],
+    }, actionsDir)
+    expect(rec.changes[0]!.destBackup).not.toBeNull()
+    expect(await readFile(join(dest, 'agent.md'), 'utf-8')).toBe('src tree')
+    expect(existsSync(join(dest, 'old.md'))).toBe(false)
+
+    await undoAction({ id: rec.id }, { actionsDir })
+    expect(await readFile(join(src, 'agent.md'), 'utf-8')).toBe('src tree')
+    expect(await readFile(join(dest, 'old.md'), 'utf-8')).toBe('dest tree')
+    expect(existsSync(join(dest, 'agent.md'))).toBe(false)
+  })
+
+  it('refuses dir-move undo when the original path is occupied, then --force overwrites', async () => {
+    const { actionsDir, files } = await makeRoot()
+    const src = join(files, 'cmd')
+    const dest = join(files, 'cmd-archived')
+    await mkdir(src, { recursive: true })
+    await writeFile(join(src, 'cmd.md'), 'body')
+    const rec = await runAction({
+      kind: 'archive-command',
+      description: 'occupied dir',
+      changes: [{ op: 'move', path: src, movedTo: dest }],
+    }, actionsDir)
+
+    await mkdir(src, { recursive: true })
+    await writeFile(join(src, 'squatter.md'), 'squatter')
+
+    const err = await undoAction({ id: rec.id }, { actionsDir }).catch(e => e)
+    expect(err).toBeInstanceOf(DriftError)
+    expect((err as DriftError).drifted.some(d => d.includes(src))).toBe(true)
+
+    await undoAction({ id: rec.id }, { actionsDir, force: true })
+    expect(await readFile(join(src, 'cmd.md'), 'utf-8')).toBe('body')
+    expect(existsSync(join(src, 'squatter.md'))).toBe(false)
+    expect(existsSync(dest)).toBe(false)
+  })
 })
 
 function bareRecord(id: string, description: string): ActionRecord {
