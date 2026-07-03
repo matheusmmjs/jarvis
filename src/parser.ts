@@ -1148,7 +1148,7 @@ export function parseApiCall(entry: JournalEntry): ParsedApiCall | null {
   })
 }
 
-function dedupeStreamingMessageIds(entries: JournalEntry[]): JournalEntry[] {
+export function dedupeStreamingMessageIds(entries: JournalEntry[]): JournalEntry[] {
   const firstIdxById = new Map<string, number>()
   const lastIdxById = new Map<string, number>()
   for (let i = 0; i < entries.length; i++) {

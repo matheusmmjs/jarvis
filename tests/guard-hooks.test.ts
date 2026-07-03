@@ -1,7 +1,8 @@
 import { afterAll, describe, expect, it } from 'vitest'
-import { appendFile, mkdtemp, rm, stat, writeFile } from 'node:fs/promises'
+import { appendFile, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { dedupeStreamingMessageIds, parseApiCall, parseJsonlLine } from '../src/parser.js'
 import { computeSessionUsage, emptyCache, readCache, writeAllow, writeCache } from '../src/guard/usage.js'
 import { runGuardHook, runGuardStatusline } from '../src/guard/hooks.js'
 import { writeGuardConfig, DEFAULT_GUARD_CONFIG } from '../src/guard/store.js'
@@ -46,6 +47,18 @@ function hookInput(path: string): string {
   return JSON.stringify({ session_id: SID, transcript_path: path, hook_event_name: 'PreToolUse', tool_name: 'Bash' })
 }
 
+// The shipped pipeline's cost for a transcript: parse every line, dedupe
+// streaming copies last-wins exactly like parseSessionFile does, sum call
+// costs. The guard's incremental fold must match this to the cent.
+async function shippedDedupedCost(path: string): Promise<number> {
+  const entries = (await readFile(path, 'utf-8'))
+    .split('\n')
+    .filter(l => l.trim())
+    .map(l => parseJsonlLine(l))
+    .filter((e): e is NonNullable<ReturnType<typeof parseJsonlLine>> => e !== null)
+  return dedupeStreamingMessageIds(entries).reduce((s, e) => s + (parseApiCall(e)?.costUSD ?? 0), 0)
+}
+
 describe('incremental session cache', () => {
   it('parses only the appended tail and totals match a cold parse', async () => {
     const base = await tmp()
@@ -86,6 +99,88 @@ describe('incremental session cache', () => {
     expect(r2.resumedFrom).toBe(0)
     const cold = await computeSessionUsage(emptyCache(SID), path)
     expect(r2.cache.costUSD).toBeCloseTo(cold.cache.costUSD, 10)
+  })
+})
+
+describe('streaming duplicates (per-message-id replace)', () => {
+  it('counts a message written 3x with identical usage once, matching the shipped dedup', async () => {
+    const dup = assistantLine('msg-dup', { inTok: 500_000, outTok: 100_000 })
+    const path = await transcript([dup, dup, dup, assistantLine('msg-other')])
+    const singlePath = await transcript([dup, assistantLine('msg-other')])
+
+    const { cache } = await computeSessionUsage(emptyCache(SID), path)
+    expect(cache.costUSD).toBeCloseTo(await shippedDedupedCost(path), 10)
+    const single = await computeSessionUsage(emptyCache(SID), singlePath)
+    expect(cache.costUSD).toBeCloseTo(single.cache.costUSD, 10)
+  })
+
+  it('keeps the last copy when streamed usage grows', async () => {
+    const copies = [10_000, 50_000, 120_000].map(outTok => assistantLine('msg-grow', { outTok }))
+    const path = await transcript(copies)
+    const lastOnly = await transcript([copies[2]!])
+
+    const { cache } = await computeSessionUsage(emptyCache(SID), path)
+    expect(cache.costUSD).toBeCloseTo(await shippedDedupedCost(path), 10)
+    const last = await computeSessionUsage(emptyCache(SID), lastOnly)
+    expect(cache.costUSD).toBeCloseTo(last.cache.costUSD, 10)
+  })
+
+  it('replaces across incremental invocations when a later copy arrives', async () => {
+    const base = await tmp()
+    const path = await transcript([assistantLine('msg-x', { outTok: 20_000 })])
+    const r1 = await computeSessionUsage(emptyCache(SID), path)
+    await writeCache(r1.cache, base)
+
+    await appendFile(path, assistantLine('msg-x', { outTok: 90_000 }) + assistantLine('msg-y'), 'utf-8')
+    const r2 = await computeSessionUsage(await readCache(SID, base), path)
+    expect(r2.resumedFrom).toBe(r1.cache.byteOffset)
+    expect(r2.cache.costUSD).toBeCloseTo(await shippedDedupedCost(path), 10)
+  })
+})
+
+describe('trailing complete line without newline', () => {
+  it('does not double count the line once it completes (A,B,C then D)', async () => {
+    const base = await tmp()
+    const a = assistantLine('msg-a')
+    const b = assistantLine('msg-b')
+    const c = assistantLine('msg-c')
+    const d = assistantLine('msg-d')
+    const dir = await tmp()
+    const path = join(dir, 'session.jsonl')
+    await writeFile(path, a + b + c.slice(0, -1), 'utf-8') // C complete but unterminated
+
+    const r1 = await computeSessionUsage(emptyCache(SID), path)
+    await writeCache(r1.cache, base)
+    // C was folded, but the offset stops after B's newline.
+    expect(r1.cache.costUSD).toBeCloseTo(await shippedDedupedCost(path), 10)
+    expect(r1.cache.byteOffset).toBe((a + b).length)
+
+    await appendFile(path, '\n' + d, 'utf-8')
+    const r2 = await computeSessionUsage(await readCache(SID, base), path)
+    // C is re-read as a replace, not a second add: totals equal a cold parse.
+    const cold = await computeSessionUsage(emptyCache(SID), path)
+    expect(r2.cache.costUSD).toBeCloseTo(cold.cache.costUSD, 10)
+    expect(r2.cache.costUSD).toBeCloseTo(await shippedDedupedCost(path), 10)
+  })
+})
+
+describe('git commit detection', () => {
+  it('requires commit to be the git subcommand', async () => {
+    const cases: [string, boolean][] = [
+      ['git commit -m x', true],
+      ['git -c user.name=x commit', true],
+      ['npm test && git commit -am done', true],
+      ['git add src\ngit commit -m "step"', true], // newline-separated multi-command Bash call
+      ['git log --grep commit', false],
+      ['git diff && echo commit', false],
+      ['echo git then commit', false],
+      ['git diff\ncommit notes to self', false], // commit on the next line is not a git subcommand
+    ]
+    for (const [command, expected] of cases) {
+      const path = await transcript([assistantLine('msg-1', { tools: [{ name: 'Bash', input: { command } }] })])
+      const { cache } = await computeSessionUsage(emptyCache(SID), path)
+      expect(cache.sawGitCommit, command).toBe(expected)
+    }
   })
 })
 

@@ -9,7 +9,8 @@
 //   cwd, hook_event_name, permission_mode. PreToolUse adds tool_name +
 //   tool_input; SessionStart adds source (startup|resume|clear|compact).
 //   statusLine stdin differs: session_id, transcript_path, workspace.current_dir,
-//   cost.total_cost_usd (plain text out, first stdout line rendered).
+//   cost.total_cost_usd (plain text out; each stdout line renders as its own
+//   status row, so we emit exactly one).
 // Exit/stdout contract: exit 0 -> stdout parsed as JSON output; exit 2 ->
 //   blocking, stderr fed to the model. We ALWAYS exit 0 and encode any decision
 //   as JSON, so an internal error is indistinguishable from "no opinion"
@@ -106,7 +107,7 @@ async function handleStop(input: unknown, opts: HookOpts): Promise<string> {
   if (
     config.checkpointUSD !== null
     && cache.costUSD > config.checkpointUSD
-    && cache.editCount === 0
+    && !cache.sawEdit
     && !cache.sawGitCommit
     && !cache.stopNotified
   ) {

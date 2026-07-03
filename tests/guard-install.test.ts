@@ -90,6 +90,20 @@ describe('guard install', () => {
     await runAction(built.plan!, a2)
     expect((await readJson(s2)).statusLine.command).toBe('my-statusline.sh')
   })
+
+  it('refuses to apply a plan when the settings file changed after it was built', async () => {
+    const { settings, actionsDir } = await makeRoot()
+    await writeFile(settings, canonical({ permissions: { allow: [] } }))
+    const built = buildInstall(settings)
+    expect(built.plan).not.toBeNull()
+
+    const concurrent = canonical({ permissions: { allow: ['Bash(ls:*)'] } })
+    await writeFile(settings, concurrent)
+
+    await expect(runAction(built.plan!, actionsDir)).rejects.toThrow(/changed since the plan was built/)
+    expect(await readFile(settings, 'utf-8')).toBe(concurrent) // the concurrent edit survives
+    expect(await readRecords(actionsDir)).toEqual([]) // nothing journaled
+  })
 })
 
 describe('guard uninstall', () => {

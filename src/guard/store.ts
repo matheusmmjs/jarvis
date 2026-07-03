@@ -23,12 +23,18 @@ export function flagsPath(base?: string): string {
   return join(guardDir(base), 'flags.json')
 }
 
+// Per-session state sits one level below the shared flags.json so a session id
+// can never collide with it (e.g. a session literally named "flags").
+export function sessionsDir(base?: string): string {
+  return join(guardDir(base), 'sessions')
+}
+
 export function sessionCachePath(sessionId: string, base?: string): string {
-  return join(guardDir(base), `${sanitizeId(sessionId)}.json`)
+  return join(sessionsDir(base), `${sanitizeId(sessionId)}.json`)
 }
 
 export function allowPath(sessionId: string, base?: string): string {
-  return join(guardDir(base), `${sanitizeId(sessionId)}.allow`)
+  return join(sessionsDir(base), `${sanitizeId(sessionId)}.allow`)
 }
 
 // Session ids come from the hook payload; keep them to a filesystem-safe set so

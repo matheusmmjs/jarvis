@@ -3,7 +3,8 @@ import { mkdtemp, mkdir, readFile, rm, utimes, writeFile } from 'node:fs/promise
 import { existsSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { runAction } from '../src/act/apply.js'
 import { journalPath, readRecords } from '../src/act/journal.js'
 import { sha256 } from '../src/act/backup.js'
@@ -182,8 +183,11 @@ describe('act list --json (CLI)', () => {
       kind: 'mcp-remove', description: 'newer', changes: [{ op: 'edit', path: p2, content: 'b2' }],
     }, actionsDir)
 
+    // Anchor the spawn to this checkout so running vitest from another cwd
+    // cannot execute a different checkout's cli.ts.
+    const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..')
     const res = spawnSync(process.execPath, ['--import', 'tsx', 'src/cli.ts', 'act', 'list', '--json'], {
-      cwd: process.cwd(),
+      cwd: repoRoot,
       env: { ...process.env, HOME: home, USERPROFILE: home, HOMEPATH: home, HOMEDRIVE: '' },
       encoding: 'utf-8',
     })

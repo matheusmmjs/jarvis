@@ -116,12 +116,12 @@ async function doStatus(): Promise<void> {
 }
 
 async function doAllow(sessionId: string | undefined): Promise<void> {
-  const { guardDir } = await import('./store.js')
+  const { sessionsDir } = await import('./store.js')
   const { writeAllow } = await import('./usage.js')
   let id = sessionId
   if (!id) {
-    const dir = guardDir()
-    const names = (await readdir(dir).catch(() => [])).filter(f => f.endsWith('.json') && f !== 'flags.json')
+    const dir = sessionsDir()
+    const names = (await readdir(dir).catch(() => [])).filter(f => f.endsWith('.json'))
     let newest = { at: -1, id: '' }
     for (const name of names) {
       const st = await stat(join(dir, name)).catch(() => null)
