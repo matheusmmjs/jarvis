@@ -193,22 +193,31 @@ function loadWorkspaceMap(workspaceStorageDir: string): WorkspaceMapping {
       continue
     }
     try {
+      // Cursor renamed the per-workspace composer list from
+      // 'composer.composerData' to 'composer.composerHeaders' in newer builds
+      // (identical { allComposers: [{ composerId }] } shape). Read both keys
+      // and merge so the composer -> workspace mapping keeps working across
+      // Cursor versions. Without this, on builds that only write
+      // 'composer.composerHeaders' every composer falls through to the
+      // 'cursor' orphan bucket and per-project attribution is lost.
       const rows = db.query<{ value: string }>(
-        "SELECT value FROM ItemTable WHERE key='composer.composerData'",
+        "SELECT value FROM ItemTable WHERE key IN ('composer.composerData', 'composer.composerHeaders')",
       )
       if (rows.length === 0) continue
-      let parsed: { allComposers?: Array<{ composerId?: string }> }
-      try {
-        parsed = JSON.parse(rows[0]!.value)
-      } catch {
-        continue
-      }
       const project = sanitizeWorkspaceUri(folder)
       let added = 0
-      for (const c of parsed.allComposers ?? []) {
-        if (typeof c.composerId === 'string') {
-          result.composerToWorkspace.set(c.composerId, folder)
-          added += 1
+      for (const row of rows) {
+        let parsed: { allComposers?: Array<{ composerId?: string }> }
+        try {
+          parsed = JSON.parse(row.value)
+        } catch {
+          continue
+        }
+        for (const c of parsed.allComposers ?? []) {
+          if (typeof c.composerId === 'string') {
+            result.composerToWorkspace.set(c.composerId, folder)
+            added += 1
+          }
         }
       }
       if (added > 0) {
