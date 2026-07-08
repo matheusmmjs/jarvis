@@ -29,15 +29,15 @@ export function DeviceSearchModal({ onClose, onPaired }: { onClose: () => void; 
   const connect = async (d: DiscoveredDevice) => {
     setPairing(d.fingerprint)
     setError(null)
-    setStatus(`Confirm the code ${d.code} on "${d.name}", then approve there. Waiting...`)
+    setStatus(`Confirme o código ${d.code} em "${d.name}" e aprove por lá. Aguardando...`)
     try {
       const r = await pairDevice(d)
       if (r.ok) {
-        setStatus(`Connected to "${r.name ?? d.name}".`)
+        setStatus(`Conectado a "${r.name ?? d.name}".`)
         onPaired()
         setTimeout(onClose, 700)
       } else {
-        setError(r.error ?? 'Pairing failed')
+        setError(r.error ?? 'Falha no pareamento')
         setStatus(null)
         setPairing(null)
       }
@@ -55,16 +55,16 @@ export function DeviceSearchModal({ onClose, onPaired }: { onClose: () => void; 
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between border-b border-border px-5 py-3.5">
-          <h2 className="text-sm font-semibold text-foreground">Search local devices</h2>
+          <h2 className="text-sm font-semibold text-foreground">Buscar dispositivos locais</h2>
           <div className="flex items-center gap-2">
             <button
               onClick={() => void scan()}
               disabled={scanning}
               className="rounded-md border border-border px-2.5 py-1 text-xs text-tertiary-foreground transition-colors hover:text-foreground disabled:opacity-50"
             >
-              Rescan
+              Buscar de novo
             </button>
-            <button onClick={onClose} className="rounded-md px-2 py-1 text-tertiary-foreground hover:text-foreground" aria-label="Close">
+            <button onClick={onClose} className="rounded-md px-2 py-1 text-tertiary-foreground hover:text-foreground" aria-label="Fechar">
               ✕
             </button>
           </div>
@@ -74,11 +74,11 @@ export function DeviceSearchModal({ onClose, onPaired }: { onClose: () => void; 
           {scanning ? (
             <div className="flex items-center gap-3 py-6 text-sm text-tertiary-foreground">
               <span className="h-4 w-4 animate-spin rounded-full border-2 border-border border-t-primary" />
-              Looking for devices on your network...
+              Procurando dispositivos na sua rede...
             </div>
           ) : found.length === 0 ? (
             <p className="py-6 text-center text-sm text-tertiary-foreground">
-              No devices found. On your other Mac run <span className="font-mono text-foreground">codeburn share</span> on the same Wi-Fi.
+              Nenhum dispositivo encontrado. No outro Mac, rode <span className="font-mono text-foreground">codeburn share</span> na mesma Wi-Fi.
             </p>
           ) : (
             <div className="flex flex-col gap-2">
@@ -97,16 +97,16 @@ export function DeviceSearchModal({ onClose, onPaired }: { onClose: () => void; 
                     </div>
                   </div>
                   {d.paired ? (
-                    <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">Connected</span>
+                    <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">Conectado</span>
                   ) : pairing === d.fingerprint ? (
-                    <span className="font-mono text-xs text-tertiary-foreground">code {d.code}</span>
+                    <span className="font-mono text-xs text-tertiary-foreground">código {d.code}</span>
                   ) : (
                     <button
                       onClick={() => void connect(d)}
                       disabled={!!pairing}
                       className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
                     >
-                      Connect
+                      Conectar
                     </button>
                   )}
                 </div>

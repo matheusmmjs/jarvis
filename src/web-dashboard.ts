@@ -77,10 +77,10 @@ const CONTENT_TYPES: Record<string, string> = {
 const NOT_BUILT_PAGE =
   '<!doctype html><meta charset="utf-8">' +
   '<body style="font-family:system-ui;background:#0a0a0b;color:#e7e7ea;padding:48px;line-height:1.6">' +
-  '<h2>Dashboard not built yet</h2>' +
-  '<p>Build the web UI once, then reload:</p>' +
+  '<h2>Dashboard ainda não foi compilado</h2>' +
+  '<p>Compile a interface web uma vez, depois recarregue:</p>' +
   '<pre style="background:#141417;padding:12px 16px;border-radius:8px;color:#ff8c42">cd dash &amp;&amp; npm install &amp;&amp; npm run build</pre>' +
-  '<p>The CLI keeps serving the live data API in the meantime.</p></body>'
+  '<p>A API de dados continua funcionando normalmente enquanto isso.</p></body>'
 
 function openBrowser(url: string): void {
   const cmd = process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'start ""' : 'xdg-open'

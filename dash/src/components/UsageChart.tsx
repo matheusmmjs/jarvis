@@ -6,7 +6,7 @@ import { CHART_COLORS, compactUsd, fmtTokens, label, usd } from '@/lib/utils'
 
 export type Unit = 'cost' | 'tokens'
 
-const MONTHS = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+const MONTHS = ['', 'Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
 function fmtDay(d: string): string {
   const [, m, day] = String(d).split('-')
   return m && day ? `${Number(day)} ${MONTHS[Number(m)]}` : d
@@ -144,7 +144,7 @@ export function DeviceUsageChart({ devices, unit = 'cost' }: { devices: DeviceUs
     const dates = [...new Set(named.flatMap((d) => dailyOf(d).map((e) => e.date)))].sort((a, b) => a.localeCompare(b))
     const series: Series[] = named.map((d) => ({
       key: keyOf(d),
-      label: d.name + (d.local ? ' (this Mac)' : ''),
+      label: d.name + (d.local ? ' (este Mac)' : ''),
       color: colorOf(d.id),
     }))
     const rowData = dates.map((date) => {

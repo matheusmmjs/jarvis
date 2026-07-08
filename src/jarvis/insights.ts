@@ -53,8 +53,8 @@ export function buildInsights(sessions: EvaluatedSession[], eff: JarvisEffective
   if (eff.evaluatedSessions >= 5 && eff.successRate !== null && eff.successRate < 0.5) {
     insights.push({
       severity: 'warn',
-      title: `Success rate is ${pct(eff.successRate)}`,
-      detail: `Only ${eff.successes} of ${eff.evaluatedSessions} coding sessions ended in a commit that survived. Consider smaller, more scoped asks per session.`,
+      title: `Taxa de sucesso está em ${pct(eff.successRate)}`,
+      detail: `Só ${eff.successes} de ${eff.evaluatedSessions} sessões de código terminaram num commit que sobreviveu. Considere pedidos menores e mais delimitados por sessão.`,
     })
   }
 
@@ -62,8 +62,8 @@ export function buildInsights(sessions: EvaluatedSession[], eff: JarvisEffective
   if (eff.costEvaluatedUSD > 0 && noCommitCost / eff.costEvaluatedUSD > 0.2) {
     insights.push({
       severity: 'warn',
-      title: `${pct(noCommitCost / eff.costEvaluatedUSD)} of coding spend produced no commit`,
-      detail: `${usd(noCommitCost)} went into sessions that edited files but never landed a commit. If the work was real, commit it; if it was exploration, a cheaper model may do.`,
+      title: `${pct(noCommitCost / eff.costEvaluatedUSD)} do gasto em código não gerou commit`,
+      detail: `${usd(noCommitCost)} foi pra sessões que editaram arquivos mas nunca fecharam um commit. Se o trabalho foi real, commite; se foi exploração, um modelo mais barato pode bastar.`,
     })
   }
 
@@ -71,8 +71,8 @@ export function buildInsights(sessions: EvaluatedSession[], eff: JarvisEffective
     const revertedCost = sessions.filter((s) => s.verdict === 'reverted').reduce((sum, s) => sum + s.costUSD, 0)
     insights.push({
       severity: 'warn',
-      title: `${eff.reverted} session${eff.reverted === 1 ? '' : 's'} reverted (${usd(revertedCost)})`,
-      detail: 'Commits from these sessions were later reverted. Review what went wrong before re-attempting similar tasks.',
+      title: `${eff.reverted} ${eff.reverted === 1 ? 'sessão revertida' : 'sessões revertidas'} (${usd(revertedCost)})`,
+      detail: 'Commits dessas sessões foram revertidos depois. Revise o que deu errado antes de tentar tarefas parecidas de novo.',
     })
   }
 
@@ -80,16 +80,16 @@ export function buildInsights(sessions: EvaluatedSession[], eff: JarvisEffective
   if (worst && worst.successes / worst.sessions < 0.5) {
     insights.push({
       severity: 'warn',
-      title: `"${worst.name}" has the lowest hit rate`,
-      detail: `${worst.successes}/${worst.sessions} sessions succeeded there for ${usd(worst.costUSD)} spent. This repo may need better CLAUDE.md context or smaller tasks.`,
+      title: `"${worst.name}" tem a menor taxa de acerto`,
+      detail: `${worst.successes}/${worst.sessions} sessões deram certo ali, com ${usd(worst.costUSD)} gastos. Esse repositório pode precisar de mais contexto no CLAUDE.md ou tarefas menores.`,
     })
   }
 
   if (eff.costPerSuccessUSD !== null) {
     insights.push({
       severity: 'info',
-      title: `${usd(eff.costPerSuccessUSD)} per successful session`,
-      detail: `Total coding spend divided by the ${eff.successes} sessions that landed durable commits.`,
+      title: `${usd(eff.costPerSuccessUSD)} por sessão bem-sucedida`,
+      detail: `Gasto total em código dividido pelas ${eff.successes} sessões que fecharam commits duráveis.`,
     })
   }
 
@@ -97,16 +97,16 @@ export function buildInsights(sessions: EvaluatedSession[], eff: JarvisEffective
   if (priciestMiss && priciestMiss.costUSD >= 1) {
     insights.push({
       severity: 'info',
-      title: `Priciest session without a commit: ${usd(priciestMiss.costUSD)}`,
-      detail: `In "${priciestMiss.project}" on ${priciestMiss.startISO.slice(0, 10)}. Worth checking what stalled it.`,
+      title: `Sessão mais cara sem commit: ${usd(priciestMiss.costUSD)}`,
+      detail: `Em "${priciestMiss.project}" em ${priciestMiss.startISO.slice(0, 10)}. Vale a pena checar o que travou ali.`,
     })
   }
 
   if (insights.length === 0 && eff.evaluatedSessions > 0) {
     insights.push({
       severity: 'info',
-      title: 'Looking good',
-      detail: `${eff.successes}/${eff.evaluatedSessions} coding sessions landed durable commits. No waste patterns detected in this period.`,
+      title: 'Tudo indo bem',
+      detail: `${eff.successes}/${eff.evaluatedSessions} sessões de código fecharam commits duráveis. Nenhum padrão de desperdício detectado neste período.`,
     })
   }
 

@@ -163,27 +163,27 @@ export function getDateRange(period: string): { range: DateRange; label: string 
   switch (period) {
     case 'today': {
       const start = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-      return { range: dayRangeForDate(start), label: `Today (${toDateString(start)})` }
+      return { range: dayRangeForDate(start), label: `Hoje (${toDateString(start)})` }
     }
     case 'yesterday': {
       const start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1)
-      return { range: dayRangeForDate(start), label: `Yesterday (${toDateString(start)})` }
+      return { range: dayRangeForDate(start), label: `Ontem (${toDateString(start)})` }
     }
     case 'week': {
       const start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7)
-      return { range: { start, end }, label: 'Last 7 Days' }
+      return { range: { start, end }, label: 'Últimos 7 dias' }
     }
     case 'month': {
       const start = new Date(now.getFullYear(), now.getMonth(), 1)
-      return { range: { start, end }, label: `${now.toLocaleString('default', { month: 'long' })} ${now.getFullYear()}` }
+      return { range: { start, end }, label: `${now.toLocaleString('pt-BR', { month: 'long' })} ${now.getFullYear()}` }
     }
     case '30days': {
       const start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 30)
-      return { range: { start, end }, label: 'Last 30 Days' }
+      return { range: { start, end }, label: 'Últimos 30 dias' }
     }
     case 'all': {
       const start = new Date(now.getFullYear(), now.getMonth() - ALL_TIME_MONTHS, 1)
-      return { range: { start, end }, label: 'Last 6 months' }
+      return { range: { start, end }, label: 'Últimos 6 meses' }
     }
     default: {
       process.stderr.write(
@@ -206,12 +206,12 @@ export function parseDaysFlag(days: string | undefined): { days: Set<string>; ra
   return {
     days: new Set(sorted),
     range: { start: startDate, end: endOfLocalDay(endDate) },
-    label: sorted.length === 1 ? sorted[0]! : `${sorted.length} days (${sorted[0]} .. ${sorted[sorted.length - 1]})`,
+    label: sorted.length === 1 ? sorted[0]! : `${sorted.length} dias (${sorted[0]} .. ${sorted[sorted.length - 1]})`,
   }
 }
 
 export function formatDateRangeLabel(from: string | undefined, to: string | undefined): string {
-  return `${from ?? 'all'} to ${to ?? 'today'}`
+  return `${from ?? 'início'} até ${to ?? 'hoje'}`
 }
 
 /** Resolve a usage query period for HTTP handlers without calling process.exit. */

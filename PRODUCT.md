@@ -1,35 +1,35 @@
-# Product
+# Produto
 
 ## Register
 
 product
 
-## Users
+## Usuários
 
-A single developer (the owner) reviewing their own Claude Code usage on their Mac, typically between coding sessions or at end of day. Context: quick check-in, not prolonged analysis. The job: "am I spending well, and is the work actually landing?"
+Um único desenvolvedor (o dono) revisando o próprio uso do Claude Code no seu Mac, geralmente entre sessões de código ou no fim do dia. Contexto: checagem rápida, não análise prolongada. O trabalho: "estou gastando bem, e o trabalho está realmente aterrissando?"
 
-## Product Purpose
+## Propósito do Produto
 
-Jarvis is a local-only effectiveness dashboard for Claude Code, forked from CodeBurn. Beyond cost/token tracking, it derives a success signal from git (commits that survive a revert window) and surfaces heuristic insights. Success looks like: the owner opens it, understands in under 30 seconds whether their AI spend is converting into durable work, and gets one actionable nudge when it isn't. Long-term ambition: evolve into a local personal assistant ("brain") that proactively suggests improvements.
+Jarvis é um dashboard de efetividade local, fork do CodeBurn. Além de rastrear custo/tokens, ele deriva um sinal de sucesso via git (commits que sobrevivem a uma janela de reversão) e mostra insights heurísticos. Sucesso parece com: o dono abre, entende em menos de 30 segundos se o gasto com IA está virando trabalho durável, e recebe uma sugestão acionável quando não está. Ambição de longo prazo: evoluir pra um assistente pessoal local ("cérebro") que sugere melhorias proativamente.
 
-## Brand Personality
+## Personalidade da Marca
 
-Calm, reliable copilot. Precise and understated — the data speaks, the interface doesn't. Confidence through quiet accuracy, not through visual noise. Never alarmist; a warn is a nudge, not a siren.
+Copiloto calmo e confiável. Preciso e discreto — o dado fala, a interface não. Confiança através de precisão silenciosa, não de ruído visual. Nunca alarmista; um aviso é um empurrãozinho, não uma sirene.
 
-## Anti-references
+## Anti-referências
 
-- Generic SaaS dashboard: identical card grids, big-number-small-label hero metrics, gradient accents, template feel.
-- Dense corporate observability panels (Grafana/Datadog): wall-of-charts clutter.
-- Cute/gamified apps: confetti, streaks, emoji-driven tone.
+- Dashboard SaaS genérico: grids de cards idênticos, métricas hero de número-grande-label-pequeno, acentos em gradiente, cara de template.
+- Painéis corporativos densos de observabilidade (Grafana/Datadog): parede de gráficos poluída.
+- Apps fofos/gamificados: confete, streaks, tom guiado por emoji.
 
-## Design Principles
+## Princípios de Design
 
-1. **Answer first, evidence second.** The top of every surface answers "is it working?"; detail supports, never competes.
-2. **Insights are guests, not billboards.** A suggestion earns its space by being actionable; otherwise it stays quiet.
-3. **Local and private is a feature.** The UI should feel personal and self-contained, never like a cloud product's login-walled shell.
-4. **Inherit CodeBurn's restraint.** Extend the existing visual system (its tokens, type, spacing) rather than bolting on a second design language.
-5. **Trustworthy numbers.** Provisional data (open revert windows) is visibly provisional; never present an estimate as a fact.
+1. **Resposta primeiro, evidência depois.** O topo de cada tela responde "está funcionando?"; o detalhe apoia, nunca compete.
+2. **Insights são convidados, não outdoors.** Uma sugestão ganha espaço sendo acionável; senão, fica quieta.
+3. **Local e privado é uma feature.** A interface deve parecer pessoal e autocontida, nunca como a casca de login de um produto de nuvem.
+4. **Herdar a contenção do CodeBurn.** Estender o sistema visual existente (tokens, tipografia, espaçamento) em vez de colar uma segunda linguagem de design.
+5. **Números confiáveis.** Dado provisório (janelas de reversão abertas) é visivelmente provisório; nunca apresentar uma estimativa como fato.
 
-## Accessibility & Inclusion
+## Acessibilidade e Inclusão
 
-WCAG AA: body text contrast ≥ 4.5:1, keyboard navigable, `prefers-reduced-motion` respected. Single known user, no additional accommodations required.
+WCAG AA: contraste de texto do corpo ≥ 4.5:1, navegável por teclado, `prefers-reduced-motion` respeitado. Um único usuário conhecido, sem acomodações adicionais necessárias.

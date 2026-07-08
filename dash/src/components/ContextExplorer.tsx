@@ -19,9 +19,9 @@ const PROVIDERS: Array<{ key: ContextProvider; label: string }> = [
 
 function ago(mtimeMs: number): string {
   const mins = Math.max(0, Math.round((Date.now() - mtimeMs) / 60_000))
-  if (mins < 60) return `${mins}m ago`
-  if (mins < 60 * 24) return `${Math.round(mins / 60)}h ago`
-  return `${Math.round(mins / (60 * 24))}d ago`
+  if (mins < 60) return `há ${mins}m`
+  if (mins < 60 * 24) return `há ${Math.round(mins / 60)}h`
+  return `há ${Math.round(mins / (60 * 24))}d`
 }
 
 function TreeTable({ rows }: { rows: ContextRow[] }) {
@@ -74,12 +74,12 @@ function SessionDetails({ provider, id }: { provider: ContextProvider; id: strin
       <div className="flex flex-col gap-2 px-4 py-4">
         <Skeleton className="h-14" />
         <Skeleton className="h-40" />
-        <p className="text-xs text-tertiary-foreground">Reading the whole transcript, large sessions take a few seconds…</p>
+        <p className="text-xs text-tertiary-foreground">Lendo a transcrição inteira, sessões grandes levam alguns segundos…</p>
       </div>
     )
   }
   if (isError || !data) {
-    return <p className="px-4 py-4 text-sm text-tertiary-foreground">Failed to load: {String((error as Error)?.message ?? 'unknown')}</p>
+    return <p className="px-4 py-4 text-sm text-tertiary-foreground">Falha ao carregar: {String((error as Error)?.message ?? 'desconhecido')}</p>
   }
 
   const view = scope === 'full' ? data.full : data.effective
@@ -90,19 +90,19 @@ function SessionDetails({ provider, id }: { provider: ContextProvider; id: strin
   return (
     <div className="flex flex-col gap-3 px-4 py-4">
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-        <Chip label="Messages" value={fmtNum(view.messages)} />
-        <Chip label="Est. tokens" value={fmtTokens(view.tokens)} />
+        <Chip label="Mensagens" value={fmtNum(view.messages)} />
+        <Chip label="Tokens est." value={fmtTokens(view.tokens)} />
         <Chip
-          label="Context (exact)"
+          label="Contexto (exato)"
           value={data.reported ? (window ? `${fmtTokens(data.reported.context)} / ${fmtTokens(window)}` : fmtTokens(data.reported.context)) : '—'}
         />
-        <Chip label="Compactions" value={fmtNum(data.compactions)} />
+        <Chip label="Compactações" value={fmtNum(data.compactions)} />
       </div>
 
       {pct !== null && (
         <div>
           <div className="mb-1 flex justify-between text-[11px] text-tertiary-foreground">
-            <span>{label(data.model)} · live context window</span>
+            <span>{label(data.model)} · janela de contexto ao vivo</span>
             <span className="tabular-nums">{pct}%</span>
           </div>
           <div className="h-1.5 overflow-hidden rounded-full bg-interactive-secondary">
@@ -123,11 +123,11 @@ function SessionDetails({ provider, id }: { provider: ContextProvider; id: strin
                 scope === s ? 'bg-active-primary text-foreground shadow-sm' : 'text-tertiary-foreground hover:text-foreground',
               )}
             >
-              {s === 'effective' ? 'Live window' : 'Full history'}
+              {s === 'effective' ? 'Janela ao vivo' : 'Histórico completo'}
             </button>
           ))}
         </div>
-        <span className="text-[11px] text-tertiary-foreground">token counts are estimates; “Context (exact)” comes from API usage</span>
+        <span className="text-[11px] text-tertiary-foreground">contagem de tokens é estimada; "Contexto (exato)" vem do uso reportado pela API</span>
       </div>
 
       <TreeTable rows={rows} />
@@ -154,7 +154,7 @@ function SessionRow({ s, open, onToggle }: { s: ContextSessionInfo; open: boolea
         </svg>
         <span className="shrink-0 font-mono text-xs text-primary">{s.sessionId.slice(0, 8)}</span>
         <span className="min-w-0 flex-1 truncate text-[13px] text-foreground">
-          {s.title || <span className="text-tertiary-foreground">untitled session</span>}
+          {s.title || <span className="text-tertiary-foreground">sessão sem título</span>}
         </span>
         <span className="hidden shrink-0 text-xs text-tertiary-foreground sm:block">{s.project}</span>
         <span className="w-16 shrink-0 text-right text-xs tabular-nums text-tertiary-foreground">{ago(s.mtimeMs)}</span>
@@ -200,7 +200,7 @@ export function ContextExplorer() {
             {p.label}
           </button>
         ))}
-        <span className="ml-auto text-xs text-tertiary-foreground">what fills each session’s context window, block by block</span>
+        <span className="ml-auto text-xs text-tertiary-foreground">o que preenche a janela de contexto de cada sessão, bloco a bloco</span>
       </div>
 
       <Card className="overflow-hidden">
@@ -211,8 +211,8 @@ export function ContextExplorer() {
             ))}
           </div>
         )}
-        {isError && <p className="px-4 py-6 text-sm text-tertiary-foreground">Failed to load sessions: {String((error as Error)?.message)}</p>}
-        {data && data.length === 0 && <p className="px-4 py-6 text-sm text-tertiary-foreground">No sessions found for this provider.</p>}
+        {isError && <p className="px-4 py-6 text-sm text-tertiary-foreground">Falha ao carregar sessões: {String((error as Error)?.message)}</p>}
+        {data && data.length === 0 && <p className="px-4 py-6 text-sm text-tertiary-foreground">Nenhuma sessão encontrada para este provider.</p>}
         {data?.map((s) => (
           <SessionRow key={s.sessionId} s={s} open={openId === s.sessionId} onToggle={() => setOpenId(openId === s.sessionId ? null : s.sessionId)} />
         ))}

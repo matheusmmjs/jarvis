@@ -33,15 +33,15 @@ export function JarvisPanel({ period, totalCost }: { period: Period; totalCost?:
     return (
       <Card className="mb-3 flex items-center justify-between px-5 py-4">
         <div>
-          <p className="text-sm font-medium text-foreground">Effectiveness is unavailable right now</p>
-          <p className="mt-0.5 text-xs text-muted-foreground">The usage data below is unaffected.</p>
+          <p className="text-sm font-medium text-foreground">A efetividade está indisponível agora</p>
+          <p className="mt-0.5 text-xs text-muted-foreground">Os dados de uso abaixo não são afetados.</p>
         </div>
         <button
           type="button"
           onClick={() => void refetch()}
           className="rounded-md border border-border px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-interactive-secondary"
         >
-          Try again
+          Tentar de novo
         </button>
       </Card>
     )
@@ -61,10 +61,10 @@ export function JarvisPanel({ period, totalCost }: { period: Period; totalCost?:
   if (!eff || eff.evaluatedSessions === 0) {
     return (
       <Card className="mb-3 px-5 py-4">
-        <p className="text-sm font-medium text-foreground">Nothing to evaluate yet this period</p>
+        <p className="text-sm font-medium text-foreground">Nada pra avaliar neste período ainda</p>
         <p className="mt-0.5 max-w-[65ch] text-xs leading-relaxed text-muted-foreground">
-          Sessions count once they edit files in a git repository. A session lands when the commits made during it
-          survive 48 hours, or until your next session in that repo.
+          Sessões contam quando editam arquivos dentro de um repositório git. Uma sessão "aterrissa" quando os commits
+          feitos durante ela sobrevivem 48 horas, ou até sua próxima sessão naquele repositório.
         </p>
       </Card>
     )
@@ -78,29 +78,29 @@ export function JarvisPanel({ period, totalCost }: { period: Period; totalCost?:
     <div className="mb-3">
       <Card className="mb-3 px-5 pb-4 pt-4">
         <div className="text-xs text-tertiary-foreground">
-          {fmtNum(eff.evaluatedSessions)} coding session{eff.evaluatedSessions === 1 ? '' : 's'} evaluated
-          {eff.pendingWindow > 0 ? ` · ${fmtNum(eff.pendingWindow)} still settling` : ''}
+          {fmtNum(eff.evaluatedSessions)} {eff.evaluatedSessions === 1 ? 'sessão' : 'sessões'} de código avaliada{eff.evaluatedSessions === 1 ? '' : 's'}
+          {eff.pendingWindow > 0 ? ` · ${fmtNum(eff.pendingWindow)} ainda em avaliação` : ''}
         </div>
-        <div className="mt-1 font-display text-4xl tracking-tight text-primary">
-          {fmtNum(eff.successes)} of {fmtNum(eff.evaluatedSessions)} landed
+        <h2 className="mt-1 font-display text-4xl font-normal tracking-tight text-primary">
+          {fmtNum(eff.successes)} de {fmtNum(eff.evaluatedSessions)} aterrissaram
           {eff.successRate != null && (
             <span className="ml-2 text-2xl text-heading">{Math.round(eff.successRate * 100)}%</span>
           )}
-        </div>
+        </h2>
         <div className="mt-4 grid grid-cols-2 gap-x-6 gap-y-3 border-t border-border pt-3.5 sm:grid-cols-3">
           <HeroStat
-            label="Cost per landed session"
+            label="Custo por sessão que aterrissou"
             value={eff.costPerSuccessUSD == null ? '—' : usd(eff.costPerSuccessUSD)}
           />
           <HeroStat
-            label="Didn't land"
+            label="Não aterrissou"
             value={String(didntLand)}
-            sub={`${fmtNum(eff.reverted)} reverted · ${fmtNum(eff.noCommit)} no commit · ${usd(eff.costWastedUSD)}`}
+            sub={`${fmtNum(eff.reverted)} revertida${eff.reverted === 1 ? '' : 's'} · ${fmtNum(eff.noCommit)} sem commit · ${usd(eff.costWastedUSD)}`}
           />
           <HeroStat
-            label="Coding spend"
+            label="Gasto em código"
             value={usd(eff.costEvaluatedUSD)}
-            sub={unevaluatedUSD !== undefined && unevaluatedUSD > 0.005 ? `+ ${usd(unevaluatedUSD)} outside coding sessions` : undefined}
+            sub={unevaluatedUSD !== undefined && unevaluatedUSD > 0.005 ? `+ ${usd(unevaluatedUSD)} fora de sessões de código` : undefined}
           />
         </div>
       </Card>
@@ -110,7 +110,7 @@ export function JarvisPanel({ period, totalCost }: { period: Period; totalCost?:
           <h3 className="mb-3.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-heading">Insights</h3>
           {insights.length === 0 ? (
             <p className="py-6 text-center text-sm text-tertiary-foreground">
-              Nothing needs your attention this period.
+              Nada precisa da sua atenção neste período.
             </p>
           ) : (
             <ul className="flex flex-col gap-3">
@@ -127,7 +127,7 @@ export function JarvisPanel({ period, totalCost }: { period: Period; totalCost?:
                     <p className="text-sm font-medium text-foreground">
                       {ins.severity === 'warn' && (
                         <span className="mr-1.5 rounded border border-[#c8541f]/40 px-1 py-px align-[2px] text-[10px] font-semibold uppercase tracking-wide text-[#a3441a]">
-                          Attention
+                          Atenção
                         </span>
                       )}
                       {ins.title}
@@ -141,24 +141,25 @@ export function JarvisPanel({ period, totalCost }: { period: Period; totalCost?:
         </Card>
 
         <Card className="px-5 py-4">
-          <h3 className="mb-3.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-heading">By project</h3>
+          <h3 className="mb-3.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-heading">Por projeto</h3>
           <DataTable
             columns={[
-              { key: 'name', label: 'Project' },
-              { key: 'landed', label: 'Landed', num: true },
-              { key: 'cost', label: 'Cost', num: true },
+              { key: 'name', label: 'Projeto' },
+              { key: 'landed', label: 'Aterrissou', num: true },
+              { key: 'cost', label: 'Custo', num: true },
             ]}
             rows={data.projects.slice(0, 8).map((p) => ({
               name: p.name,
-              landed: `${fmtNum(p.successes)}/${fmtNum(p.sessions)}${p.pending > 0 ? ` (${p.pending} pending)` : ''}`,
+              landed: `${fmtNum(p.successes)}/${fmtNum(p.sessions)}${p.pending > 0 ? ` (${p.pending} pendente${p.pending === 1 ? '' : 's'})` : ''}`,
               cost: usd(p.costUSD),
             }))}
           />
         </Card>
       </div>
 
-      <p className="mt-2 px-1 text-xs text-tertiary-foreground">
-        A session lands when the commits made during it survive 48 hours, or until your next session in that repo.
+      <p className="mt-2 max-w-[70ch] px-1 text-xs text-muted-foreground">
+        Uma sessão aterrissa quando os commits feitos durante ela sobrevivem 48 horas, ou até sua
+        próxima sessão naquele repositório.
       </p>
     </div>
   )

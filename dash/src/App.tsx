@@ -98,9 +98,9 @@ function DeviceView({ payload, isRemote, unit, period }: { payload?: Payload; is
       <Card className="mb-3 overflow-hidden">
         <div className="flex items-end justify-between px-5 pt-4">
           <div>
-            <h2 className="text-[11px] font-semibold uppercase tracking-[0.12em] text-heading">Usage &amp; cost</h2>
+            <h2 className="text-[11px] font-semibold uppercase tracking-[0.12em] text-heading">Uso e custo</h2>
             <div className="mt-1 text-xs text-tertiary-foreground">
-              {c ? `${fmtNum(c.calls)} calls · ${fmtNum(c.sessions)} sessions` : ' '}
+              {c ? `${fmtNum(c.calls)} chamadas · ${fmtNum(c.sessions)} sessões` : ' '}
             </div>
             <div className="mt-1 font-display text-3xl tracking-tight tabular-nums text-foreground">
               {c ? (unit === 'tokens' ? fmtTokens(c.inputTokens + c.outputTokens) : usd(c.cost)) : <Skeleton className="h-9 w-32" />}
@@ -115,18 +115,18 @@ function DeviceView({ payload, isRemote, unit, period }: { payload?: Payload; is
       <div className="mb-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
         {c ? (
           <>
-            <MetricCard label="Cost" value={usd(c.cost)} accent />
+            <MetricCard label="Custo" value={usd(c.cost)} accent />
             <MetricCard
               label="Tokens"
               value={fmtTokens(c.inputTokens + c.outputTokens)}
-              sub={`in ${fmtTokens(c.inputTokens)} / out ${fmtTokens(c.outputTokens)}`}
+              sub={`entrada ${fmtTokens(c.inputTokens)} / saída ${fmtTokens(c.outputTokens)}`}
             />
-            <MetricCard label="Calls" value={fmtNum(c.calls)} />
-            <MetricCard label="Sessions" value={fmtNum(c.sessions)} />
-            <MetricCard label="Cache hit" value={`${(c.cacheHitPercent || 0).toFixed(1)}%`} />
-            <MetricCard label="Cache write" value={fmtTokens(cacheWrite)} />
-            <MetricCard label="Cache read" value={fmtTokens(cacheRead)} />
-            <MetricCard label="One-shot" value={c.oneShotRate == null ? '—' : `${Math.round(c.oneShotRate * 100)}%`} />
+            <MetricCard label="Chamadas" value={fmtNum(c.calls)} />
+            <MetricCard label="Sessões" value={fmtNum(c.sessions)} />
+            <MetricCard label="Acerto de cache" value={`${(c.cacheHitPercent || 0).toFixed(1)}%`} />
+            <MetricCard label="Escrita de cache" value={fmtTokens(cacheWrite)} />
+            <MetricCard label="Leitura de cache" value={fmtTokens(cacheRead)} />
+            <MetricCard label="Primeira tentativa" value={c.oneShotRate == null ? '—' : `${Math.round(c.oneShotRate * 100)}%`} />
           </>
         ) : (
           Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="h-20" />)
@@ -134,26 +134,26 @@ function DeviceView({ payload, isRemote, unit, period }: { payload?: Payload; is
       </div>
 
       <div className="mb-3 grid gap-3 lg:grid-cols-2">
-        <Panel title="By tool">
+        <Panel title="Por ferramenta">
           <BarList items={toolBars} total={c?.cost} />
         </Panel>
-        <Panel title="Top models">
+        <Panel title="Principais modelos">
           <BarList items={modelBars} total={c?.cost} />
         </Panel>
       </div>
 
       <div className="mb-3 grid gap-3 lg:grid-cols-2">
-        <Panel title="Top projects">
+        <Panel title="Principais projetos">
           {isRemote ? (
             <p className="py-6 text-center text-sm text-tertiary-foreground">
-              Project and session detail stays on that device. Only totals are shared.
+              Detalhe de projeto e sessão fica só naquele dispositivo. Apenas os totais são compartilhados.
             </p>
           ) : (
             <DataTable
               columns={[
-                { key: 'name', label: 'Project' },
-                { key: 'cost', label: 'Cost', num: true },
-                { key: 'sessions', label: 'Sessions', num: true },
+                { key: 'name', label: 'Projeto' },
+                { key: 'cost', label: 'Custo', num: true },
+                { key: 'sessions', label: 'Sessões', num: true },
               ]}
               rows={(c?.topProjects ?? []).slice(0, 10).map((p) => ({
                 name: p.name,
@@ -163,18 +163,18 @@ function DeviceView({ payload, isRemote, unit, period }: { payload?: Payload; is
             />
           )}
         </Panel>
-        <Panel title="By activity">
+        <Panel title="Por atividade">
           <BarList items={activityBars} total={c?.cost} />
         </Panel>
       </div>
 
       <div className="mb-3 grid gap-3 lg:grid-cols-2">
-        <Panel title="Subagents">
+        <Panel title="Subagentes">
           <DataTable
             columns={[
-              { key: 'name', label: 'Subagent' },
-              { key: 'calls', label: 'Calls', num: true },
-              { key: 'cost', label: 'Cost', num: true },
+              { key: 'name', label: 'Subagente' },
+              { key: 'calls', label: 'Chamadas', num: true },
+              { key: 'cost', label: 'Custo', num: true },
             ]}
             rows={(c?.subagents ?? []).slice(0, 10).map((s) => ({ name: s.name, calls: fmtNum(s.calls), cost: usd(s.cost) }))}
           />
@@ -183,8 +183,8 @@ function DeviceView({ payload, isRemote, unit, period }: { payload?: Payload; is
           <DataTable
             columns={[
               { key: 'name', label: 'Skill' },
-              { key: 'turns', label: 'Turns', num: true },
-              { key: 'cost', label: 'Cost', num: true },
+              { key: 'turns', label: 'Turnos', num: true },
+              { key: 'cost', label: 'Custo', num: true },
             ]}
             rows={(c?.skills ?? []).slice(0, 10).map((s) => ({ name: s.name, turns: fmtNum(s.turns), cost: usd(s.cost) }))}
           />
@@ -192,24 +192,24 @@ function DeviceView({ payload, isRemote, unit, period }: { payload?: Payload; is
       </div>
 
       <div className="mb-3 grid gap-3 lg:grid-cols-2">
-        <Panel title="MCP servers">
+        <Panel title="Servidores MCP">
           <DataTable
             columns={[
-              { key: 'name', label: 'Server' },
-              { key: 'calls', label: 'Calls', num: true },
+              { key: 'name', label: 'Servidor' },
+              { key: 'calls', label: 'Chamadas', num: true },
             ]}
             rows={(c?.mcpServers ?? []).slice(0, 10).map((m) => ({ name: m.name, calls: fmtNum(m.calls) }))}
           />
         </Panel>
-        <Panel title="Savings & waste">
+        <Panel title="Economia e desperdício">
           {c ? (
             <div className="flex flex-col gap-3 py-1">
-              <Stat label="Local-model savings" value={usd(c.localModelSavings?.totalUSD)} />
+              <Stat label="Economia com modelo local" value={usd(c.localModelSavings?.totalUSD)} />
               <Stat
-                label={`Retry tax${c.retryTax?.retries ? ` (${fmtNum(c.retryTax.retries)} retries)` : ''}`}
+                label={`Custo de novas tentativas${c.retryTax?.retries ? ` (${fmtNum(c.retryTax.retries)} retentativas)` : ''}`}
                 value={usd(c.retryTax?.totalUSD)}
               />
-              <Stat label="Routing waste (potential)" value={usd(c.routingWaste?.totalSavingsUSD)} />
+              <Stat label="Desperdício de roteamento (potencial)" value={usd(c.routingWaste?.totalSavingsUSD)} />
             </div>
           ) : (
             <Skeleton className="h-20" />
@@ -217,11 +217,11 @@ function DeviceView({ payload, isRemote, unit, period }: { payload?: Payload; is
         </Panel>
       </div>
 
-      <Panel title="Tools">
+      <Panel title="Ferramentas">
         <DataTable
           columns={[
-            { key: 'name', label: 'Tool' },
-            { key: 'calls', label: 'Calls', num: true },
+            { key: 'name', label: 'Ferramenta' },
+            { key: 'calls', label: 'Chamadas', num: true },
           ]}
           rows={(c?.tools ?? []).slice(0, 14).map((t) => ({ name: t.name, calls: fmtNum(t.calls) }))}
         />
@@ -291,7 +291,7 @@ function CombinedView({ devices, unit }: { devices: DeviceUsage[]; unit: Unit })
       <Card className="mb-3 overflow-hidden">
         <div className="flex items-end justify-between px-5 pt-4">
           <div>
-            <div className="text-xs text-tertiary-foreground">{`${reachable} device${reachable === 1 ? '' : 's'} · ${fmtNum(total.calls)} calls`}</div>
+            <div className="text-xs text-tertiary-foreground">{`${reachable} dispositivo${reachable === 1 ? '' : 's'} · ${fmtNum(total.calls)} chamadas`}</div>
             <div className="mt-1 font-display text-4xl tracking-tight tabular-nums text-primary">
               {unit === 'tokens' ? fmtTokens(total.tokens) : usd(total.cost)}
             </div>
@@ -303,27 +303,27 @@ function CombinedView({ devices, unit }: { devices: DeviceUsage[]; unit: Unit })
       </Card>
 
       <div className="mb-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <MetricCard label="Total cost" value={usd(total.cost)} accent />
-        <MetricCard label="Tokens" value={fmtTokens(total.tokens)} sub={`in ${fmtTokens(inTok)} / out ${fmtTokens(outTok)}`} />
-        <MetricCard label="Calls" value={fmtNum(total.calls)} />
-        <MetricCard label="Sessions" value={fmtNum(total.sessions)} />
-        <MetricCard label="Cache write" value={fmtTokens(cacheWrite)} />
-        <MetricCard label="Cache read" value={fmtTokens(cacheRead)} />
-        <MetricCard label="Devices" value={String(reachable)} />
+        <MetricCard label="Custo total" value={usd(total.cost)} accent />
+        <MetricCard label="Tokens" value={fmtTokens(total.tokens)} sub={`entrada ${fmtTokens(inTok)} / saída ${fmtTokens(outTok)}`} />
+        <MetricCard label="Chamadas" value={fmtNum(total.calls)} />
+        <MetricCard label="Sessões" value={fmtNum(total.sessions)} />
+        <MetricCard label="Escrita de cache" value={fmtTokens(cacheWrite)} />
+        <MetricCard label="Leitura de cache" value={fmtTokens(cacheRead)} />
+        <MetricCard label="Dispositivos" value={String(reachable)} />
       </div>
 
-      <Panel title="By device">
+      <Panel title="Por dispositivo">
         <DataTable
           columns={[
-            { key: 'device', label: 'Device' },
-            { key: 'cost', label: 'Cost', num: true },
+            { key: 'device', label: 'Dispositivo' },
+            { key: 'cost', label: 'Custo', num: true },
             { key: 'tokens', label: 'Tokens', num: true },
-            { key: 'calls', label: 'Calls', num: true },
-            { key: 'sessions', label: 'Sessions', num: true },
+            { key: 'calls', label: 'Chamadas', num: true },
+            { key: 'sessions', label: 'Sessões', num: true },
           ]}
           rows={rows.map((r) => ({
-            device: r.name + (r.local ? ' · this Mac' : ''),
-            cost: r.error ? <span className="text-tertiary-foreground">unreachable</span> : usd(r.cost),
+            device: r.name + (r.local ? ' · este Mac' : ''),
+            cost: r.error ? <span className="text-tertiary-foreground">inacessível</span> : usd(r.cost),
             tokens: r.error ? '—' : fmtTokens(r.tokens),
             calls: r.error ? '—' : fmtNum(r.calls),
             sessions: r.error ? '—' : fmtNum(r.sessions),
@@ -332,16 +332,16 @@ function CombinedView({ devices, unit }: { devices: DeviceUsage[]; unit: Unit })
       </Panel>
 
       <div className="mt-3 grid gap-3 lg:grid-cols-2">
-        <Panel title="By task (all devices)">
+        <Panel title="Por tarefa (todos os dispositivos)">
           <BarList items={taskBars} total={total.cost} />
         </Panel>
-        <Panel title="By tool (all devices)">
+        <Panel title="Por ferramenta (todos os dispositivos)">
           <BarList items={toolBars} total={total.cost} />
         </Panel>
       </div>
 
       <div className="mt-3">
-        <Panel title="Top models (all devices)">
+        <Panel title="Principais modelos (todos os dispositivos)">
           <BarList items={modelBars} total={total.cost} />
         </Panel>
       </div>
@@ -433,7 +433,7 @@ export function App() {
   }, [provider, providerOptions, c0])
 
   const showCombined = multi && view === 'all'
-  const viewTitle = showCombined ? 'All devices' : (primary ? primary.name + (primary.local ? ' · this Mac' : '') : 'Loading…')
+  const viewTitle = showCombined ? 'Todos os dispositivos' : (primary ? primary.name + (primary.local ? ' · este Mac' : '') : 'Carregando…')
   const label = local?.payload?.current?.label ?? ''
 
   return (
@@ -443,7 +443,7 @@ export function App() {
           <button
             type="button"
             onClick={() => setSidebarOpen(true)}
-            aria-label="Open menu"
+            aria-label="Abrir menu"
             aria-expanded={sidebarOpen}
             aria-controls="dashboard-sidebar"
             className="-ml-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-foreground transition-colors hover:bg-interactive-secondary md:hidden"
@@ -468,7 +468,7 @@ export function App() {
                   page === pg ? 'bg-active-primary text-foreground shadow-sm' : 'text-tertiary-foreground hover:text-foreground',
                 )}
               >
-                {pg === 'usage' ? 'Usage' : 'Context'}
+                {pg === 'usage' ? 'Uso' : 'Contexto'}
               </button>
             ))}
           </div>
@@ -502,7 +502,7 @@ export function App() {
                     unit === u ? 'bg-active-primary text-foreground shadow-sm' : 'text-tertiary-foreground hover:text-foreground',
                   )}
                 >
-                  {u === 'cost' ? 'Cost' : 'Tokens'}
+                  {u === 'cost' ? 'Custo' : 'Tokens'}
                 </button>
               ))}
             </div>
@@ -511,7 +511,7 @@ export function App() {
               onChange={(e) => setProvider(e.target.value)}
               className="rounded-md border border-border bg-card px-3 py-1.5 text-xs text-foreground outline-none max-md:min-h-9 max-md:shrink-0"
             >
-              <option value="all">All tools</option>
+              <option value="all">Todas ferramentas</option>
               {providerOptions.map((p) => (
                 <option key={p} value={p}>
                   {p}
@@ -527,7 +527,7 @@ export function App() {
           {sidebarOpen && (
             <button
               type="button"
-              aria-label="Close menu"
+              aria-label="Fechar menu"
               onClick={() => setSidebarOpen(false)}
               className="fixed inset-0 z-30 bg-black/40 md:hidden"
             />
@@ -544,7 +544,7 @@ export function App() {
           >
             <button
               type="button"
-              aria-label="Close menu"
+              aria-label="Fechar menu"
               onClick={() => setSidebarOpen(false)}
               className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-md text-tertiary-foreground transition-colors hover:bg-interactive-secondary hover:text-foreground md:hidden"
             >
@@ -555,10 +555,10 @@ export function App() {
             {page === 'usage' && (
             <>
             <div className="flex flex-col gap-1">
-              <p className="mb-1 px-2.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-heading">Devices</p>
+              <p className="mb-1 px-2.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-heading">Dispositivos</p>
               {multi && (
                 <SideLink active={view === 'all'} onClick={() => { setView('all'); setSidebarOpen(false) }}>
-                  All devices
+                  Todos os dispositivos
                 </SideLink>
               )}
               {devices.map((d) => (
@@ -568,10 +568,10 @@ export function App() {
                   onClick={() => { setView(d.id); setSidebarOpen(false) }}
                 >
                   {d.name}
-                  {d.local ? ' · this Mac' : ''}
+                  {d.local ? ' · este Mac' : ''}
                 </SideLink>
               ))}
-              {devices.length === 0 && <p className="px-2.5 py-1 text-xs text-tertiary-foreground">Loading…</p>}
+              {devices.length === 0 && <p className="px-2.5 py-1 text-xs text-tertiary-foreground">Carregando…</p>}
             </div>
 
             <button
@@ -583,25 +583,25 @@ export function App() {
                 <circle cx="7" cy="7" r="4.5" />
                 <path d="M10.5 10.5L14 14" />
               </svg>
-              Search local devices
+              Buscar dispositivos locais
             </button>
             </>
             )}
 
             <div className="border-t border-border pt-4">
-              <p className="mb-2 px-2.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-heading">Share</p>
+              <p className="mb-2 px-2.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-heading">Compartilhar</p>
               <button
                 type="button"
                 onClick={() => void toggleShare()}
                 className="flex w-full items-center justify-between rounded-md px-2.5 py-1.5 text-[13.5px] text-foreground transition-colors hover:bg-interactive-secondary max-md:min-h-9"
               >
-                <span>Share this device</span>
+                <span>Compartilhar este dispositivo</span>
                 <Switch on={!!shareInfo?.sharing} />
               </button>
               {shareInfo?.sharing && (
                 <div className="mt-1.5 px-2.5">
                   <p className="text-[11px] leading-relaxed text-tertiary-foreground">
-                    Discoverable as &ldquo;{shareInfo.name}&rdquo; · {shareInfo.peers} paired
+                    Descobrível como &ldquo;{shareInfo.name}&rdquo; · {shareInfo.peers} pareado{shareInfo.peers === 1 ? '' : 's'}
                   </p>
                   <label className="mt-2 flex cursor-pointer items-center gap-2 text-xs text-muted-foreground">
                     <input
@@ -610,7 +610,7 @@ export function App() {
                       onChange={() => void toggleAlways()}
                       className="h-3.5 w-3.5 accent-[#1f8a5b]"
                     />
-                    Keep sharing always
+                    Manter sempre compartilhando
                   </label>
                 </div>
               )}
@@ -618,14 +618,14 @@ export function App() {
 
             <div className="mt-auto border-t border-border pt-4">
               <p className="text-xs font-medium leading-relaxed text-foreground">
-                Local only. Nothing leaves your machine; only totals are shared between your devices.
+                Só local. Nada sai da sua máquina; só os totais são compartilhados entre seus dispositivos.
               </p>
             </div>
           </aside>
 
           <main className="min-w-0 flex-1 overflow-y-auto pr-0.5">
             <div className="mb-3 flex items-baseline justify-between">
-              <h1 className="font-display text-xl tracking-tight text-foreground">{page === 'context' ? 'Context' : viewTitle}</h1>
+              <h1 className="font-display text-xl tracking-tight text-foreground">{page === 'context' ? 'Contexto' : viewTitle}</h1>
               <span className="text-xs text-tertiary-foreground">{page === 'usage' ? label : ''}</span>
             </div>
 
@@ -638,7 +638,7 @@ export function App() {
             )}
 
             {page === 'usage' && isError && (
-              <div className="mt-4 text-sm text-tertiary-foreground">Failed to load: {String((error as Error)?.message)}</div>
+              <div className="mt-4 text-sm text-tertiary-foreground">Falha ao carregar: {String((error as Error)?.message)}</div>
             )}
           </main>
         </div>
@@ -650,16 +650,16 @@ export function App() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
           <div className="w-full max-w-sm overflow-hidden rounded-lg border border-border bg-card shadow-[0_24px_60px_-20px_rgba(0,0,0,0.35)]">
             <div className="border-b border-border px-5 py-3.5">
-              <h2 className="text-sm font-semibold text-foreground">Incoming pairing request</h2>
+              <h2 className="text-sm font-semibold text-foreground">Solicitação de pareamento recebida</h2>
             </div>
             <div className="flex flex-col gap-3 px-5 py-4">
               {pending.map((p) => (
                 <div key={p.id} className="rounded-md border border-border px-3.5 py-3">
                   <p className="text-sm text-foreground">
-                    &ldquo;{p.name}&rdquo; wants to pair with this device.
+                    &ldquo;{p.name}&rdquo; quer parear com este dispositivo.
                   </p>
                   <p className="mt-1 text-xs text-tertiary-foreground">
-                    Confirm this code matches on that device: <span className="font-mono text-foreground">{p.code}</span>
+                    Confirme que este código bate no outro dispositivo: <span className="font-mono text-foreground">{p.code}</span>
                   </p>
                   <div className="mt-3 flex gap-2">
                     <button
@@ -667,14 +667,14 @@ export function App() {
                       onClick={() => void respondPairing(p.id, true)}
                       className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-opacity hover:opacity-90"
                     >
-                      Approve
+                      Aprovar
                     </button>
                     <button
                       type="button"
                       onClick={() => void respondPairing(p.id, false)}
                       className="rounded-md border border-border px-3 py-1.5 text-xs text-tertiary-foreground transition-colors hover:text-foreground"
                     >
-                      Deny
+                      Recusar
                     </button>
                   </div>
                 </div>

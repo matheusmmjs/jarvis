@@ -164,11 +164,11 @@ export async function fetchDevices(period: Period, provider: string): Promise<{ 
 }
 
 export const PERIODS: Array<{ key: Period; label: string }> = [
-  { key: 'today', label: 'Today' },
-  { key: 'week', label: '7 days' },
-  { key: '30days', label: '30 days' },
-  { key: 'month', label: 'Month' },
-  { key: 'all', label: 'All' },
+  { key: 'today', label: 'Hoje' },
+  { key: 'week', label: '7 dias' },
+  { key: '30days', label: '30 dias' },
+  { key: 'month', label: 'Mês' },
+  { key: 'all', label: 'Tudo' },
 ]
 
 export type DiscoveredDevice = {
