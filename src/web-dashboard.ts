@@ -20,6 +20,7 @@ import { getSharingDir, loadRemotes, loadShareAlways, saveShareAlways } from './
 import { ShareController } from './sharing/share-controller.js'
 import { sanitizeForSharing } from './sharing/sanitize.js'
 import { buildContextTree, findClaudeSession, listRecentTitledSessions, snapshotRows, type ContextTreeResult, type SessionRef } from './context-tree.js'
+import { buildJarvisReport, type JarvisReport } from './jarvis/index.js'
 import { buildCodexContextTree, findCodexSession, listRecentCodexSessions } from './context-tree-codex.js'
 
 function readBody(req: import('http').IncomingMessage): Promise<string> {
@@ -129,6 +130,20 @@ export async function runWebDashboard(opts: {
     return payload
   }
 
+  // Jarvis reports shell out to git per session, so cache per period with the
+  // same TTL as the usage payload (ADR-0004: computed on demand, no cron).
+  const jarvisCache = new Map<string, { at: number; report: Promise<JarvisReport> }>()
+  const getJarvisReport = (period: string, from?: string, to?: string): Promise<JarvisReport> => {
+    const key = `${period}|${from ?? ''}|${to ?? ''}`
+    const hit = jarvisCache.get(key)
+    if (hit && Date.now() - hit.at < LOCAL_PAYLOAD_TTL_MS) return hit.report
+    const periodInfo = periodInfoFromQuery({ period, from, to }, opts.period)
+    const report = buildJarvisReport(periodInfo.range)
+    jarvisCache.set(key, { at: Date.now(), report })
+    void report.catch(() => jarvisCache.delete(key))
+    return report
+  }
+
   // Context trees re-read a whole transcript (up to 100MB), so cache each by
   // file version. Keyed on mtime: an active session invalidates itself.
   const contextTreeCache = new Map<string, Promise<ContextTreeResult>>()
@@ -199,6 +214,25 @@ export async function runWebDashboard(opts: {
         }
         res.writeHead(200, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' })
         res.end(JSON.stringify(payload))
+        return
+      }
+
+      // Jarvis effectiveness report: git-derived success signal + heuristic
+      // insights. Local only — never included in shared/sanitized payloads.
+      if (url.pathname === '/api/jarvis') {
+        const period = url.searchParams.get('period') ?? opts.period
+        const from = url.searchParams.get('from') ?? opts.from
+        const to = url.searchParams.get('to') ?? opts.to
+        let report
+        try {
+          report = await getJarvisReport(period, from, to)
+        } catch (err) {
+          if (!(err instanceof UsageQueryError)) throw err
+          writeJsonError(res, 400, err.message)
+          return
+        }
+        res.writeHead(200, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' })
+        res.end(JSON.stringify(report))
         return
       }
 

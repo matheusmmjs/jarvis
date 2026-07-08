@@ -7,10 +7,12 @@ export function cn(...inputs: ClassValue[]): string {
 
 export function usd(n: number | undefined | null): string {
   const v = n == null || !isFinite(n) ? 0 : n
-  const sign = v < 0 ? '-' : ''
   const a = Math.abs(v)
-  const s = a >= 1 || a === 0 ? a.toFixed(2) : a >= 0.01 ? a.toFixed(3) : a.toFixed(2)
-  const [int, dec] = s.split('.')
+  // Sub-cent amounts read as rendering bugs when shown with extra decimals;
+  // cap everything at cents and mark truncation explicitly.
+  if (a > 0 && a < 0.005) return '<$0.01'
+  const sign = v < 0 ? '-' : ''
+  const [int, dec] = a.toFixed(2).split('.')
   return sign + '$' + int!.replace(/\B(?=(\d{3})+(?!\d))/g, ',') + (dec ? '.' + dec : '')
 }
 

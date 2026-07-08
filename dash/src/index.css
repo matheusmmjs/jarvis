@@ -21,7 +21,8 @@
   --popover-foreground: #16181d;
   --muted: #efece4;
   --muted-foreground: #5d626b;
-  --tertiary-foreground: #8a857c;
+  /* WCAG AA: 5.2:1 on white cards, 4.6:1 on --background paper. */
+  --tertiary-foreground: #6d6960;
   --heading: #2c5242;
   --border: rgba(23, 27, 32, 0.08);
   --input: rgba(23, 27, 32, 0.14);
@@ -30,7 +31,7 @@
   --active-primary: #ffffff;
   --accent: #efece4;
   --accent-foreground: #16181d;
-  --subtle: #8a857c;
+  --subtle: #6d6960;
   --primary: #1f8a5b;
   --primary-foreground: #ffffff;
   --ring: #1f8a5b;

@@ -57,6 +57,36 @@ export async function fetchUsage(period: Period, provider: string): Promise<Payl
   return res.json() as Promise<Payload>
 }
 
+export type JarvisInsight = {
+  severity: 'info' | 'warn'
+  title: string
+  detail: string
+}
+
+export type JarvisReport = {
+  generated: string
+  effectiveness: {
+    evaluatedSessions: number
+    successes: number
+    reverted: number
+    noCommit: number
+    pendingWindow: number
+    successRate: number | null
+    costEvaluatedUSD: number
+    costSuccessUSD: number
+    costWastedUSD: number
+    costPerSuccessUSD: number | null
+  }
+  projects: Array<{ name: string; sessions: number; successes: number; noCommit: number; reverted: number; pending: number; costUSD: number }>
+  insights: JarvisInsight[]
+}
+
+export async function fetchJarvis(period: Period): Promise<JarvisReport> {
+  const res = await fetch(`/api/jarvis?period=${encodeURIComponent(period)}`)
+  if (!res.ok) throw new Error(`Request failed (${res.status})`)
+  return res.json() as Promise<JarvisReport>
+}
+
 export type DeviceUsage = {
   id: string
   name: string

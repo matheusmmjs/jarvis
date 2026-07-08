@@ -12,6 +12,7 @@ export function DataTable({ columns, rows }: { columns: Column[]; rows: Array<Re
           {columns.map((c) => (
             <th
               key={c.key}
+              scope="col"
               className={cn(
                 'pb-2 text-[11px] font-medium uppercase tracking-wider text-tertiary-foreground',
                 c.num ? 'text-right' : 'text-left',
