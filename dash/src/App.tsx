@@ -22,6 +22,7 @@ import { UsageChart, DeviceUsageChart, type Unit } from '@/components/UsageChart
 import { DeviceSearchModal } from '@/components/DeviceSearchModal'
 import { ContextExplorer } from '@/components/ContextExplorer'
 import { JarvisPanel } from '@/components/JarvisPanel'
+import { PlanPanel } from '@/components/PlanPanel'
 
 const n = (v: number | undefined): number => v ?? 0
 
@@ -94,6 +95,7 @@ function DeviceView({ payload, isRemote, unit, period }: { payload?: Payload; is
   return (
     <>
       {!isRemote && <JarvisPanel period={period} totalCost={c?.cost} />}
+      {!isRemote && <PlanPanel />}
 
       <Card className="mb-3 overflow-hidden">
         <div className="flex items-end justify-between px-5 pt-4">

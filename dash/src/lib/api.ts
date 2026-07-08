@@ -87,6 +87,27 @@ export async function fetchJarvis(period: Period): Promise<JarvisReport> {
   return res.json() as Promise<JarvisReport>
 }
 
+export type PlanStatus = 'under' | 'near' | 'over'
+
+export type PlanUsage = {
+  plan: { id: string; monthlyUsd: number; provider: string; resetDay?: number; setAt: string }
+  periodStart: string
+  periodEnd: string
+  spentApiEquivalentUsd: number
+  budgetUsd: number
+  percentUsed: number
+  status: PlanStatus
+  projectedMonthUsd: number
+  daysUntilReset: number
+}
+
+export async function fetchPlans(): Promise<PlanUsage[]> {
+  const res = await fetch('/api/plan')
+  if (!res.ok) throw new Error(`Request failed (${res.status})`)
+  const json = (await res.json()) as { plans: PlanUsage[] }
+  return json.plans ?? []
+}
+
 export type DeviceUsage = {
   id: string
   name: string

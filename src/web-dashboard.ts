@@ -21,6 +21,7 @@ import { ShareController } from './sharing/share-controller.js'
 import { sanitizeForSharing } from './sharing/sanitize.js'
 import { buildContextTree, findClaudeSession, listRecentTitledSessions, snapshotRows, type ContextTreeResult, type SessionRef } from './context-tree.js'
 import { buildJarvisReport, type JarvisReport } from './jarvis/index.js'
+import { getPlanUsages as getPlanUsagesImpl, type PlanUsage } from './plan-usage.js'
 import { buildCodexContextTree, findCodexSession, listRecentCodexSessions } from './context-tree-codex.js'
 
 function readBody(req: import('http').IncomingMessage): Promise<string> {
@@ -144,6 +145,17 @@ export async function runWebDashboard(opts: {
     return report
   }
 
+  // Plan usage re-scans the billing period's sessions, so cache it like the
+  // other on-demand payloads (no cron — recomputed when the dashboard is open).
+  let planUsageCache: { at: number; usages: Promise<PlanUsage[]> } | null = null
+  const getPlanUsages = (): Promise<PlanUsage[]> => {
+    if (planUsageCache && Date.now() - planUsageCache.at < LOCAL_PAYLOAD_TTL_MS) return planUsageCache.usages
+    const usages = getPlanUsagesImpl()
+    planUsageCache = { at: Date.now(), usages }
+    void usages.catch(() => { planUsageCache = null })
+    return usages
+  }
+
   // Context trees re-read a whole transcript (up to 100MB), so cache each by
   // file version. Keyed on mtime: an active session invalidates itself.
   const contextTreeCache = new Map<string, Promise<ContextTreeResult>>()
@@ -233,6 +245,15 @@ export async function runWebDashboard(opts: {
         }
         res.writeHead(200, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' })
         res.end(JSON.stringify(report))
+        return
+      }
+
+      // Subscription plan usage (e.g. Claude Pro/Max), configured via
+      // `codeburn plan set`. Empty array when no plan is configured.
+      if (url.pathname === '/api/plan') {
+        const usages = await getPlanUsages()
+        res.writeHead(200, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' })
+        res.end(JSON.stringify({ plans: usages }))
         return
       }
 
